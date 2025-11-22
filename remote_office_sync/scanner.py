@@ -89,9 +89,17 @@ class Scanner:
         try:
             for file_path in root.rglob("*"):
                 if file_path.is_file():
-                    # Normalize path separators to forward slashes for cross-platform consistency
-                    # This preserves case exactly as it appears on the file system
+                    # Normalize path separators to forward slashes
+                    # On Windows, normalize case to lowercase (case-insensitive filesystem)
                     relative_path = str(file_path.relative_to(root)).replace("\\", "/")
+
+                    # Windows filesystem is case-insensitive - normalize to lowercase
+                    # This prevents treating AAA.doc and aaa.doc as different files
+                    import platform
+
+                    if platform.system() == "Windows":
+                        relative_path = relative_path.lower()
+
                     filename = file_path.name
 
                     if self._should_ignore(filename):
