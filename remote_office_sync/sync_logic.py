@@ -47,6 +47,7 @@ class SyncEngine:
         config: Config,
         previous_state: Dict[str, FileMetadata],
         current_state: Dict[str, FileMetadata],
+        mtime_tolerance: float = 2.0,
     ):
         """Initialize sync engine.
 
@@ -54,11 +55,13 @@ class SyncEngine:
             config: Configuration object
             previous_state: File state from last sync
             current_state: Current file state
+            mtime_tolerance: Tolerance in seconds for mtime comparison (default 2.0)
         """
         self.config = config
         self.previous_state = previous_state
         self.current_state = current_state
-        self.conflict_detector = ConflictDetector(previous_state, current_state)
+        self.mtime_tolerance = mtime_tolerance
+        self.conflict_detector = ConflictDetector(previous_state, current_state, mtime_tolerance)
 
     def generate_sync_jobs(self) -> List[SyncJob]:
         """Generate list of sync jobs to perform.

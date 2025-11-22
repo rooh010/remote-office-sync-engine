@@ -32,15 +32,18 @@ class ConflictDetector:
         self,
         previous_state: dict[str, FileMetadata],
         current_state: dict[str, FileMetadata],
+        mtime_tolerance: float = 2.0,
     ):
         """Initialize conflict detector.
 
         Args:
             previous_state: File state from last sync
             current_state: Current file state
+            mtime_tolerance: Tolerance in seconds for mtime comparison (default 2.0)
         """
         self.previous_state = previous_state
         self.current_state = current_state
+        self.mtime_tolerance = mtime_tolerance
 
     def detect_conflicts(self) -> dict[str, Tuple[ConflictType, FileMetadata, FileMetadata]]:
         """Detect all conflicts between current and previous state.
@@ -122,11 +125,11 @@ class ConflictDetector:
         if not metadata.exists_left or not metadata.exists_right:
             return False
 
-        # Simple heuristic: same size and mtime within 2 seconds
+        # Simple heuristic: same size and mtime within tolerance
         # (network drives may not preserve sub-second precision)
         same_size = metadata.size_left == metadata.size_right
         mtime_diff = abs((metadata.mtime_left or 0) - (metadata.mtime_right or 0))
-        same_mtime = mtime_diff < 2.0  # Allow up to 2 seconds difference
+        same_mtime = mtime_diff < self.mtime_tolerance
 
         return same_size and same_mtime
 

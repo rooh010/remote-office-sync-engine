@@ -13,6 +13,7 @@ from remote_office_sync.email_notifications import (
     ErrorAlert,
 )
 from remote_office_sync.file_ops import FileOps, FileOpsError
+from remote_office_sync.filesystem_utils import detect_mtime_precision
 from remote_office_sync.logging_setup import get_logger, setup_logging
 from remote_office_sync.scanner import Scanner
 from remote_office_sync.soft_delete import SoftDeleteManager
@@ -33,6 +34,10 @@ class SyncRunner:
         """
         self.config = load_config(config_path)
         setup_logging(self.config.log_file_path, self.config.log_level)
+
+        # Detect filesystem mtime precision difference
+        logger.info("Detecting filesystem modification time precision...")
+        self.mtime_tolerance = detect_mtime_precision(self.config.left_root, self.config.right_root)
 
         self.scanner = Scanner(
             ignore_extensions=self.config.ignore_extensions,
@@ -108,7 +113,7 @@ class SyncRunner:
 
         # Generate sync jobs
         logger.info("Generating sync jobs")
-        sync_engine = SyncEngine(self.config, previous_state, current_state)
+        sync_engine = SyncEngine(self.config, previous_state, current_state, self.mtime_tolerance)
         jobs = sync_engine.generate_sync_jobs()
 
         # Execute sync jobs
@@ -321,6 +326,13 @@ def main() -> int:
             try:
                 runner = SyncRunner.__new__(SyncRunner)
                 runner.config = load_config_from_env()
+
+                # Detect filesystem mtime precision difference
+                logger.info("Detecting filesystem modification time precision...")
+                runner.mtime_tolerance = detect_mtime_precision(
+                    runner.config.left_root, runner.config.right_root
+                )
+
                 runner.scanner = Scanner(
                     ignore_extensions=runner.config.ignore_extensions,
                     ignore_filenames_prefix=runner.config.ignore_filenames_prefix,
