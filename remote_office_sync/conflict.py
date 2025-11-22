@@ -122,9 +122,11 @@ class ConflictDetector:
         if not metadata.exists_left or not metadata.exists_right:
             return False
 
-        # Simple heuristic: same size and mtime
+        # Simple heuristic: same size and mtime within 2 seconds
+        # (network drives may not preserve sub-second precision)
         same_size = metadata.size_left == metadata.size_right
-        same_mtime = metadata.mtime_left == metadata.mtime_right
+        mtime_diff = abs((metadata.mtime_left or 0) - (metadata.mtime_right or 0))
+        same_mtime = mtime_diff < 2.0  # Allow up to 2 seconds difference
 
         return same_size and same_mtime
 
