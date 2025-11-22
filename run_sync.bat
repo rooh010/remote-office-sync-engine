@@ -23,19 +23,45 @@ REM Check if config.yaml exists
 if not exist config.yaml (
     echo.
     echo WARNING: config.yaml not found!
-    echo Creating config.yaml from config.example.yaml...
-    copy config.example.yaml config.yaml
-    if errorlevel 1 (
-        echo Error: Failed to copy config.example.yaml
-        pause
-        exit /b 1
-    )
+    echo Creating config.yaml...
+    (
+        echo # Remote Office Sync Configuration
+        echo # Edit paths below with your actual folders
+        echo.
+        echo left_root: "C:/Users/Andy/Documents"
+        echo right_root: "C:/Users/Andy/OneDrive"
+        echo.
+        echo soft_delete:
+        echo   enabled: true
+        echo   max_size_mb: 20
+        echo.
+        echo conflict_policy:
+        echo   modify_modify: clash
+        echo   new_new: clash
+        echo   metadata_conflict: clash
+        echo.
+        echo ignore:
+        echo   extensions:
+        echo     - .tmp
+        echo     - .bak
+        echo     - .log
+        echo   filenames_prefix:
+        echo     - .
+        echo     - "~"
+        echo   filenames_exact:
+        echo     - thumbs.db
+        echo.
+        echo email:
+        echo   enabled: false
+        echo.
+        echo logging:
+        echo   level: INFO
+        echo   file_path: "C:/logs/sync.log"
+    ) > config.yaml
+    echo.
     echo ✓ Created config.yaml
     echo.
     echo IMPORTANT: Edit config.yaml and set your actual paths!
-    echo Use forward slashes or double backslashes:
-    echo   left_root: "C:/Users/Your/Documents"
-    echo   right_root: "C:/Users/Your/OneDrive"
     echo.
     echo Opening config.yaml for editing...
     timeout /t 2 /nobreak

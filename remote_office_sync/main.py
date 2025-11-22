@@ -189,20 +189,23 @@ class SyncRunner:
                 logger.info(f"[SOFT_DELETE_RIGHT] {job.file_path}")
 
             elif job.action == SyncAction.CLASH_CREATE:
-                # Create clash files on both sides if both exist
+                # Create clash file from the older version, keep newer as main
                 current = self.state_db.load_state().get(job.file_path)
                 if current and current.exists_left and current.exists_right:
-                    left_clash = self.file_ops.create_clash_file(str(left_path), is_left=True)
-                    right_clash = self.file_ops.create_clash_file(str(right_path), is_left=False)
-                    logger.info(f"[CLASH_CREATE] {job.file_path} -> {left_clash}, {right_clash}")
-
-                    # Also copy the newer version over the older
                     left_mtime = current.mtime_left or 0
                     right_mtime = current.mtime_right or 0
+
+                    # Determine which is older and create clash file from it
                     if left_mtime > right_mtime:
+                        # Left is newer - create clash from right (older), then copy left to right
+                        right_clash = self.file_ops.create_clash_file(str(right_path), is_left=False)
                         self.file_ops.copy_file(str(left_path), str(right_path))
+                        logger.info(f"[CLASH_CREATE] {job.file_path}: right (older) -> {right_clash}, left (newer) kept as main")
                     else:
+                        # Right is newer - create clash from left (older), then copy right to left
+                        left_clash = self.file_ops.create_clash_file(str(left_path), is_left=True)
                         self.file_ops.copy_file(str(right_path), str(left_path))
+                        logger.info(f"[CLASH_CREATE] {job.file_path}: left (older) -> {left_clash}, right (newer) kept as main")
 
                     # Record conflict alert
                     self.conflict_alerts.append(

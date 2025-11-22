@@ -146,12 +146,13 @@ The engine applies 13 sync rules to determine what to do with each file:
 ## Conflict Policies
 
 ### clash (Default)
-Creates timestamped clash files on both sides:
-- Original file becomes `filename.CLASH.LEFT.20250101_120000.ext`
-- Both versions preserved, newer one copied to main location
+Creates a timestamped clash file from the older version:
+- **Older version** → Saved as `filename.CLASH.LEFT/RIGHT.20250101_120000.ext`
+- **Newer version** → Kept as the main file on both sides
+- Both versions preserved, but newer content is active
 
 ### overwrite_newer
-Automatically overwrites older version with newer one
+Automatically overwrites older version with newer one (no clash file created)
 
 ### notify_only
 Sends email alert but doesn't modify files
