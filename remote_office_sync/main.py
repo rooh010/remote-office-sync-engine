@@ -245,6 +245,30 @@ class SyncRunner:
                         )
                     )
 
+            elif job.action == SyncAction.RENAME_CONFLICT:
+                # Handle rename conflict: right_new exists on right, left_new on left
+                # Create conflict file from right_new, keep left_new as main
+                right_conflict_path = Path(self.config.right_root) / job.file_path  # right_new
+                left_main_path = Path(self.config.left_root) / job.src_path  # left_new
+                right_main_path = Path(self.config.right_root) / job.src_path  # left_new on right
+                left_conflict_path = (
+                    Path(self.config.left_root) / job.file_path
+                )  # right_new on left
+
+                # Create conflict file from right version on right side
+                right_conflict_file = self.file_ops.create_clash_file(str(right_conflict_path))
+                logger.info(
+                    f"[RENAME_CONFLICT] Created conflict file on right: {right_conflict_file}"
+                )
+
+                # Copy left version (winner) from left to right
+                self.file_ops.copy_file(str(left_main_path), str(right_main_path))
+                logger.info(f"[RENAME_CONFLICT] Copied winner from left to right: {job.src_path}")
+
+                # Copy right version to left as well
+                self.file_ops.copy_file(str(right_conflict_path), str(left_conflict_path))
+                logger.info(f"[RENAME_CONFLICT] Copied conflict version to left: {job.file_path}")
+
             elif job.action == SyncAction.NOOP:
                 logger.info(f"[NOOP] {job.file_path}: {job.details}")
 

@@ -24,6 +24,7 @@ class SyncAction(Enum):
     CLASH_CREATE = "CLASH_CREATE"
     RENAME_LEFT = "RENAME_LEFT"
     RENAME_RIGHT = "RENAME_RIGHT"
+    RENAME_CONFLICT = "RENAME_CONFLICT"
     NOOP = "NOOP"
 
 
@@ -195,28 +196,20 @@ class SyncEngine:
         """
         jobs = []
 
-        # Determine which rename is "newer" based on the policy
-        # For now, use clash policy: keep both versions with conflict marker
+        # Use left as the "winner" and save right as conflict file
         logger.info(
             f"Handling rename conflict: {old_path} -> {left_new} (left) vs {right_new} (right)"
         )
 
-        # Create clash files for both versions, then pick one as "main"
-        # Use left as main for consistency
+        # Strategy: Create a special RENAME_CONFLICT action that will:
+        # 1. Create conflict file from right version on both sides
+        # 2. Keep left version as main on both sides
         jobs.append(
             SyncJob(
-                action=SyncAction.CLASH_CREATE,
+                action=SyncAction.RENAME_CONFLICT,
                 file_path=right_new,
-                details=f"Rename conflict: {old_path} renamed differently on both sides",
-            )
-        )
-
-        # Copy left version to right
-        jobs.append(
-            SyncJob(
-                action=SyncAction.COPY_LEFT_TO_RIGHT,
-                file_path=left_new,
-                details=f"Rename conflict resolved: using left name {left_new}",
+                src_path=left_new,
+                details=f"Rename conflict: {old_path} -> {left_new} (main) vs {right_new}",
             )
         )
 
