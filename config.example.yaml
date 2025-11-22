@@ -1,0 +1,47 @@
+# Remote Office Sync Configuration
+# Copy this file to config.yaml and edit with your paths
+
+# File system paths - IMPORTANT: Use quotes and double backslashes or forward slashes
+left_root: "C:/Users/Andy/Documents"
+right_root: "C:/Users/Andy/OneDrive"
+
+# Soft delete settings
+soft_delete:
+  enabled: true
+  max_size_mb: 20
+
+# Conflict resolution policies
+conflict_policy:
+  modify_modify: clash
+  new_new: clash
+  metadata_conflict: clash
+
+# File ignore rules
+ignore:
+  extensions:
+    - .tmp
+    - .bak
+    - .log
+    - .swp
+  filenames_prefix:
+    - .
+    - "~"
+  filenames_exact:
+    - thumbs.db
+    - desktop.ini
+
+# Email notifications (optional)
+email:
+  enabled: false
+  # smtp_host: smtp.gmail.com
+  # smtp_port: 587
+  # username: your-email@gmail.com
+  # password: your-app-password
+  # from: your-email@gmail.com
+  # to:
+  #   - recipient@example.com
+
+# Logging
+logging:
+  level: INFO
+  file_path: "C:/logs/sync.log"

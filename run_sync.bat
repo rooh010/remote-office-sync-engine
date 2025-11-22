@@ -26,11 +26,13 @@ if not exist config.yaml (
     echo Creating config.yaml from config.example.yaml...
     copy config.example.yaml config.yaml
     echo.
-    echo IMPORTANT: Edit config.yaml and set your paths:
-    echo   left_root: C:\your\local\path
-    echo   right_root: P:\your\network\path
+    echo IMPORTANT: Edit config.yaml and set your actual paths
+    echo Use forward slashes or double backslashes:
+    echo   left_root: "C:/Users/Your/Path"
+    echo   right_root: "C:/Users/Other/Path"
     echo.
     pause
+    exit /b 1
 )
 
 REM Run sync
