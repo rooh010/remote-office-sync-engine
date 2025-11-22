@@ -25,14 +25,25 @@ if not exist config.yaml (
     echo WARNING: config.yaml not found!
     echo Creating config.yaml from config.example.yaml...
     copy config.example.yaml config.yaml
+    if errorlevel 1 (
+        echo Error: Failed to copy config.example.yaml
+        pause
+        exit /b 1
+    )
+    echo ✓ Created config.yaml
     echo.
-    echo IMPORTANT: Edit config.yaml and set your actual paths
+    echo IMPORTANT: Edit config.yaml and set your actual paths!
     echo Use forward slashes or double backslashes:
-    echo   left_root: "C:/Users/Your/Path"
-    echo   right_root: "C:/Users/Other/Path"
+    echo   left_root: "C:/Users/Your/Documents"
+    echo   right_root: "C:/Users/Your/OneDrive"
     echo.
+    echo Opening config.yaml for editing...
+    timeout /t 2 /nobreak
+    notepad config.yaml
+    echo.
+    echo After editing, run this script again.
     pause
-    exit /b 1
+    exit /b 0
 )
 
 REM Run sync
