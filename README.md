@@ -146,8 +146,8 @@ The engine applies 13 sync rules to determine what to do with each file:
 ## Conflict Policies
 
 ### clash (Default)
-Creates a timestamped clash file from the older version:
-- **Older version** → Saved as `filename.CLASH.LEFT/RIGHT.20250101_120000.ext`
+Creates a timestamped conflict file from the older version:
+- **Older version** → Saved as `filename.CONFLICT.20250101_120000.ext`
 - **Newer version** → Kept as the main file on both sides
 - Both versions preserved, but newer content is active
 

@@ -95,17 +95,16 @@ class TestFileOps:
         assert new_file.read_text() == "content"
 
     def test_create_clash_file(self, temp_dirs):
-        """Test creating clash file."""
+        """Test creating conflict file."""
         left, _ = temp_dirs
         original = left / "conflict.txt"
         original.write_text("content")
 
         file_ops = FileOps()
-        clash_path = file_ops.create_clash_file(str(original), is_left=True)
+        conflict_path = file_ops.create_clash_file(str(original), is_left=True)
 
-        assert Path(clash_path).exists()
-        assert "CLASH" in clash_path
-        assert "LEFT" in clash_path
+        assert Path(conflict_path).exists()
+        assert "CONFLICT" in conflict_path
         assert original.read_text() == "content"
 
     def test_ensure_directory(self, temp_dirs):

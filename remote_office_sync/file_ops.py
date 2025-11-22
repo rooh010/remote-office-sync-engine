@@ -147,7 +147,7 @@ class FileOps:
 
         Args:
             path: Original file path
-            is_left: Whether this is the left side copy
+            is_left: Whether this is the left side copy (unused, kept for compatibility)
 
         Returns:
             New clash file path
@@ -161,22 +161,21 @@ class FileOps:
             if not file_path.exists():
                 raise FileOpsError(f"File does not exist: {path}")
 
-            # Create clash filename: original_name.CLASH.timestamp.ext
+            # Create clash filename: original_name.CONFLICT.timestamp.ext
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             stem = file_path.stem
             suffix = file_path.suffix
-            side = "LEFT" if is_left else "RIGHT"
-            clash_name = f"{stem}.CLASH.{side}.{timestamp}{suffix}"
+            clash_name = f"{stem}.CONFLICT.{timestamp}{suffix}"
             clash_path = file_path.parent / clash_name
 
             # Copy original to clash location
             shutil.copy2(path, clash_path)
-            logger.info(f"Created clash file: {clash_path}")
+            logger.info(f"Created conflict file: {clash_path}")
 
             return str(clash_path)
         except (OSError, IOError, shutil.Error) as e:
-            logger.error(f"Failed to create clash file for {path}: {e}")
-            raise FileOpsError(f"Clash creation failed: {e}") from e
+            logger.error(f"Failed to create conflict file for {path}: {e}")
+            raise FileOpsError(f"Conflict creation failed: {e}") from e
 
     def ensure_directory(self, path: str) -> None:
         """Ensure directory exists.

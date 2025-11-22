@@ -195,17 +195,23 @@ class SyncRunner:
                     left_mtime = current.mtime_left or 0
                     right_mtime = current.mtime_right or 0
 
-                    # Determine which is older and create clash file from it
+                    # Determine which is older and create conflict file from it
                     if left_mtime > right_mtime:
-                        # Left is newer - create clash from right (older), then copy left to right
-                        right_clash = self.file_ops.create_clash_file(str(right_path), is_left=False)
+                        # Left is newer - create conflict from right (older)
+                        conflict_file = self.file_ops.create_clash_file(str(right_path))
                         self.file_ops.copy_file(str(left_path), str(right_path))
-                        logger.info(f"[CLASH_CREATE] {job.file_path}: right (older) -> {right_clash}, left (newer) kept as main")
+                        logger.info(
+                            f"[CONFLICT] {job.file_path}: "
+                            f"older version saved as {conflict_file}"
+                        )
                     else:
-                        # Right is newer - create clash from left (older), then copy right to left
-                        left_clash = self.file_ops.create_clash_file(str(left_path), is_left=True)
+                        # Right is newer - create conflict from left (older)
+                        conflict_file = self.file_ops.create_clash_file(str(left_path))
                         self.file_ops.copy_file(str(right_path), str(left_path))
-                        logger.info(f"[CLASH_CREATE] {job.file_path}: left (older) -> {left_clash}, right (newer) kept as main")
+                        logger.info(
+                            f"[CONFLICT] {job.file_path}: "
+                            f"older version saved as {conflict_file}"
+                        )
 
                     # Record conflict alert
                     self.conflict_alerts.append(
