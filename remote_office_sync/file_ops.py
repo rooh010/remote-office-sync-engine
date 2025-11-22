@@ -106,7 +106,14 @@ class FileOps:
         new_name = f"{timestamp}_{original_name}"
         destination = soft_delete_path / new_name
 
-        file_path.rename(destination)
+        try:
+            # Try rename first (fast, works on same drive)
+            file_path.rename(destination)
+        except OSError:
+            # If rename fails (cross-drive), use copy + delete
+            shutil.copy2(str(file_path), str(destination))
+            file_path.unlink()
+
         logger.info(f"Soft deleted file: {path} -> {destination}")
 
     def rename_file(self, old_path: str, new_path: str) -> None:
