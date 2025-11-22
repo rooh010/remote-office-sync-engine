@@ -68,8 +68,17 @@ class SyncEngine:
         jobs = []
         processed = set()
 
-        # First detect renames (including case changes)
-        rename_map = self._detect_renames()
+        # First detect renames (including case changes and conflicts)
+        rename_map, rename_conflicts = self._detect_renames()
+
+        # Handle rename conflicts
+        for old_path, (left_new, right_new) in rename_conflicts.items():
+            processed.add(old_path)
+            processed.add(left_new)
+            processed.add(right_new)
+            jobs.extend(self._handle_rename_conflict(old_path, left_new, right_new))
+
+        # Handle clean renames
         for old_path, new_path in rename_map.items():
             processed.add(old_path)
             processed.add(new_path)
@@ -92,13 +101,16 @@ class SyncEngine:
         logger.info(f"Generated {len(jobs)} sync jobs")
         return jobs
 
-    def _detect_renames(self) -> Dict[str, str]:
+    def _detect_renames(self) -> tuple[Dict[str, str], Dict[str, tuple[str, str]]]:
         """Detect file renames by matching size and mtime.
 
         Returns:
-            Dict mapping old_path -> new_path for detected renames
+            Tuple of (rename_map, rename_conflicts) where:
+            - rename_map: old_path -> new_path for clean renames
+            - rename_conflicts: old_path -> (left_new_path, right_new_path) for conflicts
         """
         rename_map = {}
+        rename_conflicts = {}
 
         # Track renames by original path to detect conflicts
         renames_by_original = {}
@@ -155,10 +167,10 @@ class SyncEngine:
                     # Check if renamed to different names (case-sensitive comparison)
                     if left_new != right_new:
                         logger.warning(
-                            f"Rename conflict: {old_path} renamed to {left_new} on left "
-                            f"and {right_new} on right - treating as new-new conflict"
+                            f"Rename conflict detected: {old_path} renamed to "
+                            f"{left_new} on left and {right_new} on right"
                         )
-                        # Don't add to rename_map - let it be handled as new-new conflict
+                        rename_conflicts[old_path] = (left_new, right_new)
                         continue
 
             # No conflict - add single rename
@@ -166,7 +178,49 @@ class SyncEngine:
                 rename_map[old_path] = new_path
                 logger.info(f"Detected rename on {side}: {old_path} -> {new_path}")
 
-        return rename_map
+        return rename_map, rename_conflicts
+
+    def _handle_rename_conflict(
+        self, old_path: str, left_new: str, right_new: str
+    ) -> List[SyncJob]:
+        """Handle a rename conflict where file was renamed differently on both sides.
+
+        Args:
+            old_path: Original file path
+            left_new: New path on left side
+            right_new: New path on right side
+
+        Returns:
+            List of sync jobs to resolve the conflict
+        """
+        jobs = []
+
+        # Determine which rename is "newer" based on the policy
+        # For now, use clash policy: keep both versions with conflict marker
+        logger.info(
+            f"Handling rename conflict: {old_path} -> {left_new} (left) vs {right_new} (right)"
+        )
+
+        # Create clash files for both versions, then pick one as "main"
+        # Use left as main for consistency
+        jobs.append(
+            SyncJob(
+                action=SyncAction.CLASH_CREATE,
+                file_path=right_new,
+                details=f"Rename conflict: {old_path} renamed differently on both sides",
+            )
+        )
+
+        # Copy left version to right
+        jobs.append(
+            SyncJob(
+                action=SyncAction.COPY_LEFT_TO_RIGHT,
+                file_path=left_new,
+                details=f"Rename conflict resolved: using left name {left_new}",
+            )
+        )
+
+        return jobs
 
     def _handle_rename(self, old_path: str, new_path: str) -> List[SyncJob]:
         """Handle a detected rename.
