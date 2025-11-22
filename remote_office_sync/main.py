@@ -69,77 +69,97 @@ class SyncRunner:
         """
         try:
             logger.info("Starting sync engine")
+            conflicts_detected = self._run_sync_cycle()
 
-            # Load previous state
-            logger.info("Loading previous sync state")
-            previous_state = self.state_db.load_state()
+            # If conflicts were detected, run sync again to sync conflict files
+            if conflicts_detected:
+                logger.info("Conflicts detected - running second sync to sync conflict files")
+                print("\nRunning second sync to sync conflict files...\n")
+                self._run_sync_cycle()
 
-            # Scan directories
-            logger.info(f"Scanning left directory: {self.config.left_root}")
-            left_scan = self.scanner.scan_directory(self.config.left_root)
-
-            logger.info(f"Scanning right directory: {self.config.right_root}")
-            right_scan = self.scanner.scan_directory(self.config.right_root)
-
-            # Merge scans
-            current_state = self.scanner.merge_scans(left_scan, right_scan)
-
-            # Generate sync jobs
-            logger.info("Generating sync jobs")
-            sync_engine = SyncEngine(self.config, previous_state, current_state)
-            jobs = sync_engine.generate_sync_jobs()
-
-            # Execute sync jobs
-            logger.info(f"Executing {len(jobs)} sync jobs")
-            executed = 0
-            failed = 0
-
-            for job in jobs:
-                try:
-                    if self._execute_job(job):
-                        executed += 1
-                    else:
-                        failed += 1
-                except Exception as e:
-                    logger.error(f"Job failed: {job.file_path}: {e}")
-                    self.error_alerts.append(
-                        ErrorAlert(
-                            error_message=str(e),
-                            error_type="Job Execution Error",
-                            affected_file=job.file_path,
-                        )
-                    )
-                    failed += 1
-
-            # Save updated state
-            logger.info("Saving sync state")
-            self.state_db.save_state(current_state)
-
-            # Send notifications
-            if self.conflict_alerts:
-                self.email_notifier.send_conflict_email(self.conflict_alerts)
-
-            if self.error_alerts:
-                self.email_notifier.send_error_email(self.error_alerts)
-
-            # Print summary
-            logger.info(f"Sync completed: {executed} jobs executed, {failed} failed")
-            print(f"\n{'='*50}")
-            print("Sync Summary")
-            print(f"{'='*50}")
-            print(f"Total files processed: {len(current_state)}")
-            print(f"Sync jobs executed: {executed}")
-            print(f"Jobs failed: {failed}")
-            print(f"Conflicts detected: {len(self.conflict_alerts)}")
-            print(f"Errors: {len(self.error_alerts)}")
-            size_mb = self.soft_delete_mgr.get_soft_delete_size() / (1024 * 1024)
-            print(f"Soft delete directory size: {size_mb:.2f} MB")
-            print(f"{'='*50}\n")
-
-            return failed == 0
+            return True
         except Exception as e:
             logger.exception(f"Sync engine failed: {e}")
             return False
+
+    def _run_sync_cycle(self) -> bool:
+        """Execute one sync cycle.
+
+        Returns:
+            True if conflicts were detected
+        """
+        # Clear alerts from previous cycle
+        self.conflict_alerts.clear()
+        self.error_alerts.clear()
+
+        # Load previous state
+        logger.info("Loading previous sync state")
+        previous_state = self.state_db.load_state()
+
+        # Scan directories
+        logger.info(f"Scanning left directory: {self.config.left_root}")
+        left_scan = self.scanner.scan_directory(self.config.left_root)
+
+        logger.info(f"Scanning right directory: {self.config.right_root}")
+        right_scan = self.scanner.scan_directory(self.config.right_root)
+
+        # Merge scans
+        current_state = self.scanner.merge_scans(left_scan, right_scan)
+
+        # Generate sync jobs
+        logger.info("Generating sync jobs")
+        sync_engine = SyncEngine(self.config, previous_state, current_state)
+        jobs = sync_engine.generate_sync_jobs()
+
+        # Execute sync jobs
+        logger.info(f"Executing {len(jobs)} sync jobs")
+        executed = 0
+        failed = 0
+
+        for job in jobs:
+            try:
+                if self._execute_job(job):
+                    executed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(f"Job failed: {job.file_path}: {e}")
+                self.error_alerts.append(
+                    ErrorAlert(
+                        error_message=str(e),
+                        error_type="Job Execution Error",
+                        affected_file=job.file_path,
+                    )
+                )
+                failed += 1
+
+        # Save updated state
+        logger.info("Saving sync state")
+        self.state_db.save_state(current_state)
+
+        # Send notifications
+        if self.conflict_alerts:
+            self.email_notifier.send_conflict_email(self.conflict_alerts)
+
+        if self.error_alerts:
+            self.email_notifier.send_error_email(self.error_alerts)
+
+        # Print summary
+        logger.info(f"Sync completed: {executed} jobs executed, {failed} failed")
+        print(f"\n{'='*50}")
+        print("Sync Summary")
+        print(f"{'='*50}")
+        print(f"Total files processed: {len(current_state)}")
+        print(f"Sync jobs executed: {executed}")
+        print(f"Jobs failed: {failed}")
+        print(f"Conflicts detected: {len(self.conflict_alerts)}")
+        print(f"Errors: {len(self.error_alerts)}")
+        size_mb = self.soft_delete_mgr.get_soft_delete_size() / (1024 * 1024)
+        print(f"Soft delete directory size: {size_mb:.2f} MB")
+        print(f"{'='*50}\n")
+
+        # Return whether conflicts were detected
+        return len(self.conflict_alerts) > 0
 
     def _execute_job(self, job) -> bool:
         """Execute a single sync job.
