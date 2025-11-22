@@ -1,9 +1,9 @@
 # Remote Office File Sync Configuration
 # MVP 0.1
 
-# File system paths
-left_root: C:\pdrive_local
-right_root: P:\
+# File system paths (use forward slashes or double backslashes)
+left_root: "C:\\pdrive_local"
+right_root: "P:\\"
 
 # Soft delete configuration
 soft_delete:

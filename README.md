@@ -78,8 +78,9 @@ ruff check .
 ### Basic Config
 
 ```yaml
-left_root: C:\pdrive_local
-right_root: P:\
+# Windows paths must use escaped backslashes or forward slashes
+left_root: "C:\\pdrive_local"
+right_root: "P:\\"
 
 soft_delete:
   enabled: true
@@ -99,6 +100,10 @@ logging:
   level: INFO
   file_path: sync.log
 ```
+
+**Important:** Windows paths in YAML must be quoted and use either:
+- Double backslashes: `"C:\\Users\\Documents"`
+- Forward slashes: `"C:/Users/Documents"`
 
 ### Email Notifications (Optional)
 
