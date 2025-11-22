@@ -3,7 +3,7 @@
 
 # Local paths to sync
 left_root: C:\pdrive_local
-right_root: P:\
+right_root: P:
 
 # Soft delete settings (move to .deleted folder instead of permanent delete)
 soft_delete:
