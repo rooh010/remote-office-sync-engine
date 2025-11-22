@@ -89,7 +89,9 @@ class Scanner:
         try:
             for file_path in root.rglob("*"):
                 if file_path.is_file():
-                    relative_path = str(file_path.relative_to(root))
+                    # Normalize path separators to forward slashes for cross-platform consistency
+                    # This preserves case exactly as it appears on the file system
+                    relative_path = str(file_path.relative_to(root)).replace("\\", "/")
                     filename = file_path.name
 
                     if self._should_ignore(filename):

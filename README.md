@@ -11,6 +11,7 @@ A Python-based bidirectional file synchronization tool for syncing between local
 - **State Tracking**: SQLite database remembers last sync state
 - **Email Alerts**: Get notified of conflicts and errors
 - **Comprehensive Logging**: Full audit trail of all sync operations
+- **Case-Sensitive**: File name case changes (e.g., `Document.txt` → `document.txt`) are synced
 
 ## Installation
 
