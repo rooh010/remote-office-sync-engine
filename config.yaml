@@ -1,52 +1,27 @@
-# Remote Office Sync Configuration
-# Copy this to config.yaml and update paths for your setup
+left_root: "C:/pdrive_local/"
+right_root: "p:/"
 
-# Local paths to sync
-left_root: C:\pdrive_local
-right_root: P:
-
-# Soft delete settings (move to .deleted folder instead of permanent delete)
 soft_delete:
-  enabled: true
-  max_size_mb: 20  # Files larger than this are permanently deleted
+    enabled: true
+    max_size_mb: 20
 
-# Conflict resolution policies
 conflict_policy:
-  # When file modified on both sides: clash, overwrite_newer, or notify_only
-  modify_modify: clash
+    modify_modify: clash
+    new_new: clash
+    metadata_conflict: clash
 
-  # When file created on both sides with different content
-  new_new: clash
-
-  # When file sizes differ significantly (potential corruption)
-  metadata_conflict: clash
-
-# File ignore rules
 ignore:
-  extensions:
-    - .tmp
-    - .bak
-    - .log
-    - .swp
-  filenames_prefix:
-    - .
-    - ~
-  filenames_exact:
-    - thumbs.db
-    - desktop.ini
+    extensions:
+      - .tmp
+      - .bak
+    filenames_prefix:
+      - .
+    filenames_exact:
+      - thumbs.db
 
-# Email notifications (optional)
 email:
-  enabled: false
-  # smtp_host: smtp.gmail.com
-  # smtp_port: 587
-  # username: your-email@gmail.com
-  # password: your-app-password
-  # from: your-email@gmail.com
-  # to:
-  #   - recipient@example.com
+    enabled: false
 
-# Logging
 logging:
-  level: INFO
-  file_path: c:\logs\sync.log
+    level: INFO
+    file_path: sync.log
