@@ -445,6 +445,18 @@ class SyncEngine:
                 (curr_metadata.mtime_right or 0) > (prev_metadata.mtime_right or 0)
             )
 
+            # Debug logging for change detection
+            if prev_metadata:
+                logger.debug(f"Change detection for {file_path}:")
+                logger.debug(
+                    f"  Left: prev_mtime={prev_metadata.mtime_left}, "
+                    f"curr_mtime={curr_metadata.mtime_left}, changed={left_changed}"
+                )
+                logger.debug(
+                    f"  Right: prev_mtime={prev_metadata.mtime_right}, "
+                    f"curr_mtime={curr_metadata.mtime_right}, changed={right_changed}"
+                )
+
             if left_changed and not right_changed:
                 jobs.append(
                     SyncJob(
