@@ -100,6 +100,9 @@ class SyncEngine:
         """
         rename_map = {}
 
+        # Track renames by original path to detect conflicts
+        renames_by_original = {}
+
         # Find files that disappeared from previous state
         disappeared = {}
         for prev_path, prev_meta in self.previous_state.items():
@@ -132,10 +135,36 @@ class SyncEngine:
                 if len(appeared_list) == 1 and len(disappeared_list) == 1:
                     old_path = disappeared_list[0][0]
                     new_path = appeared_list[0][0]
-                    # Only treat as rename if paths differ only in case or are actual renames
-                    if old_path.lower() == new_path.lower() or True:  # Accept all renames
-                        rename_map[old_path] = new_path
-                        logger.info(f"Detected rename: {old_path} -> {new_path}")
+
+                    # Track this rename by original path
+                    if old_path not in renames_by_original:
+                        renames_by_original[old_path] = []
+                    renames_by_original[old_path].append((key[0], new_path))  # (side, new_path)
+
+        # Check for rename conflicts (same file renamed differently on both sides)
+        for old_path, renames in renames_by_original.items():
+            if len(renames) == 2:
+                # Renamed on both sides
+                left_rename = next((r for r in renames if r[0] == "left"), None)
+                right_rename = next((r for r in renames if r[0] == "right"), None)
+
+                if left_rename and right_rename:
+                    left_new = left_rename[1]
+                    right_new = right_rename[1]
+
+                    # Check if renamed to different names (case-sensitive comparison)
+                    if left_new != right_new:
+                        logger.warning(
+                            f"Rename conflict: {old_path} renamed to {left_new} on left "
+                            f"and {right_new} on right - treating as new-new conflict"
+                        )
+                        # Don't add to rename_map - let it be handled as new-new conflict
+                        continue
+
+            # No conflict - add single rename
+            for side, new_path in renames:
+                rename_map[old_path] = new_path
+                logger.info(f"Detected rename on {side}: {old_path} -> {new_path}")
 
         return rename_map
 
