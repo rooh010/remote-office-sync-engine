@@ -269,6 +269,20 @@ class SyncRunner:
                 self.file_ops.copy_file(str(right_conflict_path), str(left_conflict_path))
                 logger.info(f"[RENAME_CONFLICT] Copied conflict version to left: {job.file_path}")
 
+                # Record conflict alert
+                current = self.state_db.load_state().get(job.file_path)
+                if current:
+                    self.conflict_alerts.append(
+                        ConflictAlert(
+                            file_path=job.file_path,
+                            conflict_type="Rename Conflict",
+                            left_mtime=current.mtime_left,
+                            right_mtime=current.mtime_right,
+                            left_size=current.size_left,
+                            right_size=current.size_right,
+                        )
+                    )
+
             elif job.action == SyncAction.NOOP:
                 logger.info(f"[NOOP] {job.file_path}: {job.details}")
 
