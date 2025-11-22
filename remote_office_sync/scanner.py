@@ -54,18 +54,18 @@ class Scanner:
 
     def _should_ignore(self, filename: str) -> bool:
         """Check if file should be ignored."""
-        # Check exact filename match
+        # Check exact filename match (case-sensitive)
         if filename in self.ignore_filenames_exact:
             return True
 
-        # Check prefix match
+        # Check prefix match (case-sensitive)
         for prefix in self.ignore_filenames_prefix:
             if filename.startswith(prefix):
                 return True
 
-        # Check extension match
+        # Check extension match (case-sensitive)
         for ext in self.ignore_extensions:
-            if filename.lower().endswith(ext.lower()):
+            if filename.endswith(ext):
                 return True
 
         return False
