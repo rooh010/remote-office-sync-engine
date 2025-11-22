@@ -57,12 +57,26 @@ class ConflictDetector:
                 # File is new, check if created on both sides
                 if curr_metadata.exists_left and curr_metadata.exists_right:
                     if not self._is_same_content(curr_metadata):
+                        logger.debug(
+                            f"NEW_NEW conflict for {path}: "
+                            f"left_size={curr_metadata.size_left}, "
+                            f"right_size={curr_metadata.size_right}, "
+                            f"left_mtime={curr_metadata.mtime_left}, "
+                            f"right_mtime={curr_metadata.mtime_right}"
+                        )
                         conflicts[path] = (ConflictType.NEW_NEW, None, curr_metadata)
                 continue
 
             # Check for modify-modify conflict
             if self._was_modified_both_sides(path, prev_metadata, curr_metadata):
                 if not self._is_same_content(curr_metadata):
+                    logger.debug(
+                        f"MODIFY_MODIFY conflict for {path}: "
+                        f"prev: left_mtime={prev_metadata.mtime_left}, "
+                        f"right_mtime={prev_metadata.mtime_right}, "
+                        f"curr: left_mtime={curr_metadata.mtime_left}, "
+                        f"right_mtime={curr_metadata.mtime_right}"
+                    )
                     conflicts[path] = (ConflictType.MODIFY_MODIFY, prev_metadata, curr_metadata)
 
             # Check for metadata conflicts
