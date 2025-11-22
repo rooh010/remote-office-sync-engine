@@ -209,3 +209,9 @@ __marimo__/
 # Claude Code
 .claude/settings.local.json
 .idea/
+
+# Remote Office Sync - runtime files
+sync_state.db
+sync.log
+.deleted/
+config.yaml
