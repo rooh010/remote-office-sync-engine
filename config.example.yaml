@@ -29,6 +29,7 @@ ignore:
   filenames_exact:
     - thumbs.db
     - desktop.ini
+    - System Volume Information
 
 # Email notifications (optional)
 email:

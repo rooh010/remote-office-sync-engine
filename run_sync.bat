@@ -50,6 +50,8 @@ if not exist config.yaml (
         echo     - "~"
         echo   filenames_exact:
         echo     - thumbs.db
+        echo     - desktop.ini
+        echo     - System Volume Information
         echo.
         echo email:
         echo   enabled: false
