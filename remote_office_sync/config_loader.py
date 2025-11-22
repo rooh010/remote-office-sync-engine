@@ -110,17 +110,20 @@ class Config:
     @property
     def ignore_extensions(self) -> list:
         """Get extensions to ignore."""
-        return self._config.get("ignore", {}).get("extensions", [])
+        items = self._config.get("ignore", {}).get("extensions", [])
+        return [i for i in (items or []) if i]
 
     @property
     def ignore_filenames_prefix(self) -> list:
         """Get filename prefixes to ignore."""
-        return self._config.get("ignore", {}).get("filenames_prefix", [])
+        items = self._config.get("ignore", {}).get("filenames_prefix", [])
+        return [i for i in (items or []) if i]
 
     @property
     def ignore_filenames_exact(self) -> list:
         """Get exact filenames to ignore."""
-        return self._config.get("ignore", {}).get("filenames_exact", [])
+        items = self._config.get("ignore", {}).get("filenames_exact", [])
+        return [i for i in (items or []) if i]
 
     @property
     def log_file_path(self) -> str:

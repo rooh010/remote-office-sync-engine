@@ -48,9 +48,9 @@ class Scanner:
             ignore_filenames_prefix: Filename prefixes to ignore
             ignore_filenames_exact: Exact filenames to ignore
         """
-        self.ignore_extensions = set(ignore_extensions or [])
-        self.ignore_filenames_prefix = set(ignore_filenames_prefix or [])
-        self.ignore_filenames_exact = set(ignore_filenames_exact or [])
+        self.ignore_extensions = set(f for f in (ignore_extensions or []) if f)
+        self.ignore_filenames_prefix = set(f for f in (ignore_filenames_prefix or []) if f)
+        self.ignore_filenames_exact = set(f for f in (ignore_filenames_exact or []) if f)
 
     def _should_ignore(self, filename: str) -> bool:
         """Check if file should be ignored."""
