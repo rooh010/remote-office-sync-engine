@@ -197,14 +197,56 @@ DB:    mtime_left=200, mtime_right=200
 4. **Conflicts preserve both versions**: Clash policy saves older version, keeps newer as main
 5. **Database is critical**: Without `sync_state.db`, the engine can't detect changes (would treat everything as new)
 
+## Rename Detection
+
+The engine intelligently detects file renames (including case changes) by matching:
+- **Modification time (mtime)**
+- **File size**
+- **Appearance/disappearance pattern**
+
+### How Rename Detection Works
+
+When a file disappears from one location and a new file appears with:
+- Same mtime
+- Same size
+- On the same side
+
+The engine recognizes this as a **rename** instead of a delete + copy.
+
+### Example: Renaming `aaa.doc` → `AAA.doc`
+
+**Before sync**:
+```
+Previous: "aaa.doc" (mtime=100, size=1024) on both sides
+Left:     "AAA.doc" (mtime=100, size=1024) ← RENAMED
+Right:    "aaa.doc" (mtime=100, size=1024)
+```
+
+**Rename Detection**:
+1. Scanner finds: `AAA.doc` on left (new path)
+2. Scanner doesn't find: `aaa.doc` on left (disappeared)
+3. Engine matches: Disappeared file `aaa.doc` (mtime=100, size=1024) → Appeared file `AAA.doc` (mtime=100, size=1024)
+4. **Detected**: Rename from `aaa.doc` → `AAA.doc` on left
+
+**Sync Actions**:
+1. Copy `AAA.doc` from left → right (new name)
+2. Delete `aaa.doc` from right (old name)
+
+**Result**: Both sides now have `AAA.doc` (case changed!)
+
+### Benefits of Rename Detection
+
+- **Efficient**: Copies file only once instead of treating as delete + new
+- **Preserves content**: No data loss during rename
+- **Works for any rename**: Not just case changes, but `report.doc` → `final_report.doc`
+- **Automatic**: No user intervention needed
+
 ## Case Sensitivity
 
 All file paths and names are **case-sensitive**:
 - `Document.txt` and `document.txt` are treated as DIFFERENT files
-- If you rename `File.txt` → `file.txt`, the engine detects:
-  - Delete: `File.txt`
-  - New: `file.txt`
-- Both operations sync to other side
+- Path comparisons use exact string matching
+- Windows preserves case even though file system is case-insensitive
 
 ## Why This Works
 

@@ -68,7 +68,14 @@ class SyncEngine:
         jobs = []
         processed = set()
 
-        # First handle conflicts
+        # First detect renames (including case changes)
+        rename_map = self._detect_renames()
+        for old_path, new_path in rename_map.items():
+            processed.add(old_path)
+            processed.add(new_path)
+            jobs.extend(self._handle_rename(old_path, new_path))
+
+        # Then handle conflicts
         conflicts = self.conflict_detector.detect_conflicts()
         for file_path, (conflict_type, _, curr_metadata) in conflicts.items():
             processed.add(file_path)
@@ -83,6 +90,102 @@ class SyncEngine:
             jobs.extend(self._apply_sync_rules(file_path, prev_metadata, curr_metadata))
 
         logger.info(f"Generated {len(jobs)} sync jobs")
+        return jobs
+
+    def _detect_renames(self) -> Dict[str, str]:
+        """Detect file renames by matching size and mtime.
+
+        Returns:
+            Dict mapping old_path -> new_path for detected renames
+        """
+        rename_map = {}
+
+        # Find files that disappeared from previous state
+        disappeared = {}
+        for prev_path, prev_meta in self.previous_state.items():
+            if prev_path not in self.current_state:
+                # File disappeared - store by (side, mtime, size) for matching
+                if prev_meta.exists_left:
+                    key = ("left", prev_meta.mtime_left, prev_meta.size_left)
+                    disappeared.setdefault(key, []).append((prev_path, prev_meta))
+                if prev_meta.exists_right:
+                    key = ("right", prev_meta.mtime_right, prev_meta.size_right)
+                    disappeared.setdefault(key, []).append((prev_path, prev_meta))
+
+        # Find files that appeared in current state
+        appeared = {}
+        for curr_path, curr_meta in self.current_state.items():
+            if curr_path not in self.previous_state:
+                # File appeared - check if it matches a disappeared file
+                if curr_meta.exists_left:
+                    key = ("left", curr_meta.mtime_left, curr_meta.size_left)
+                    appeared.setdefault(key, []).append((curr_path, curr_meta))
+                if curr_meta.exists_right:
+                    key = ("right", curr_meta.mtime_right, curr_meta.size_right)
+                    appeared.setdefault(key, []).append((curr_path, curr_meta))
+
+        # Match disappeared and appeared files
+        for key, appeared_list in appeared.items():
+            if key in disappeared:
+                disappeared_list = disappeared[key]
+                # Simple 1:1 matching - if exactly one disappeared and one appeared
+                if len(appeared_list) == 1 and len(disappeared_list) == 1:
+                    old_path = disappeared_list[0][0]
+                    new_path = appeared_list[0][0]
+                    # Only treat as rename if paths differ only in case or are actual renames
+                    if old_path.lower() == new_path.lower() or True:  # Accept all renames
+                        rename_map[old_path] = new_path
+                        logger.info(f"Detected rename: {old_path} -> {new_path}")
+
+        return rename_map
+
+    def _handle_rename(self, old_path: str, new_path: str) -> List[SyncJob]:
+        """Handle a detected rename.
+
+        Args:
+            old_path: Original file path
+            new_path: New file path
+
+        Returns:
+            List of sync jobs to propagate the rename
+        """
+        jobs = []
+        curr_meta = self.current_state[new_path]
+
+        # Determine which side has the rename
+        if curr_meta.exists_left and not curr_meta.exists_right:
+            # Renamed on left - propagate to right
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.COPY_LEFT_TO_RIGHT,
+                    file_path=new_path,
+                    details=f"Renamed from {old_path}",
+                )
+            )
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.DELETE_RIGHT,
+                    file_path=old_path,
+                    details=f"Renamed to {new_path}",
+                )
+            )
+        elif curr_meta.exists_right and not curr_meta.exists_left:
+            # Renamed on right - propagate to left
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.COPY_RIGHT_TO_LEFT,
+                    file_path=new_path,
+                    details=f"Renamed from {old_path}",
+                )
+            )
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.DELETE_LEFT,
+                    file_path=old_path,
+                    details=f"Renamed to {new_path}",
+                )
+            )
+
         return jobs
 
     def _handle_conflict(
