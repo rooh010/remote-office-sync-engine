@@ -1,0 +1,49 @@
+# Remote Office File Sync Configuration
+# MVP 0.1
+
+# File system paths
+left_root: C:\pdrive_local
+right_root: P:\
+
+# Soft delete configuration
+soft_delete:
+  enabled: true
+  max_size_mb: 20
+
+# Conflict resolution policies
+# Options: clash (create clash files), notify (email only), overwrite (newer wins)
+conflict_policy:
+  modify_modify: clash        # File modified on both sides
+  new_new: clash              # File created on both sides with different content
+  metadata_conflict: clash    # Metadata/case conflict on both sides
+
+# Email notifications (optional, disabled by default)
+email:
+  enabled: false
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  username: your-email@gmail.com
+  password: your-app-password
+  from: your-email@gmail.com
+  to:
+    - admin@example.com
+
+# Ignore rules
+ignore:
+  extensions:
+    - .tmp
+    - .lock
+    - .swp
+    - .part
+  filenames_prefix:
+    - "~$"
+    - ".~"
+  filenames_exact:
+    - "Thumbs.db"
+    - ".DS_Store"
+    - "desktop.ini"
+
+# Logging configuration
+logging:
+  file_path: logs/sync.log
+  level: INFO
