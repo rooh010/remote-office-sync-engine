@@ -91,9 +91,10 @@ class SyncEngine:
             processed.add(file_path)
             jobs.extend(self._handle_conflict(file_path, conflict_type, curr_metadata))
 
-        # Then handle regular sync rules
+        # Then handle regular sync rules for current files
         for file_path, curr_metadata in self.current_state.items():
             if file_path in processed:
+                logger.debug(f"Skipping {file_path} (already processed)")
                 continue
 
             prev_metadata = self.previous_state.get(file_path)
