@@ -1,0 +1,4 @@
+PyYAML==6.0.1
+pytest==8.4.2
+black==24.1.1
+ruff==0.3.5

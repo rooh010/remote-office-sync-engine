@@ -1,49 +1,52 @@
-# Remote Office File Sync Configuration
-# MVP 0.1
+# Remote Office Sync Configuration
+# Copy this to config.yaml and update paths for your setup
 
-# File system paths
+# Local paths to sync
 left_root: C:\pdrive_local
 right_root: P:\
 
-# Soft delete configuration
+# Soft delete settings (move to .deleted folder instead of permanent delete)
 soft_delete:
   enabled: true
-  max_size_mb: 20
+  max_size_mb: 20  # Files larger than this are permanently deleted
 
 # Conflict resolution policies
-# Options: clash (create clash files), notify (email only), overwrite (newer wins)
 conflict_policy:
-  modify_modify: clash        # File modified on both sides
-  new_new: clash              # File created on both sides with different content
-  metadata_conflict: clash    # Metadata/case conflict on both sides
+  # When file modified on both sides: clash, overwrite_newer, or notify_only
+  modify_modify: clash
 
-# Email notifications (optional, disabled by default)
-email:
-  enabled: false
-  smtp_host: smtp.gmail.com
-  smtp_port: 587
-  username: your-email@gmail.com
-  password: your-app-password
-  from: your-email@gmail.com
-  to:
-    - admin@example.com
+  # When file created on both sides with different content
+  new_new: clash
 
-# Ignore rules
+  # When file sizes differ significantly (potential corruption)
+  metadata_conflict: clash
+
+# File ignore rules
 ignore:
   extensions:
     - .tmp
-    - .lock
+    - .bak
+    - .log
     - .swp
-    - .part
   filenames_prefix:
-    - "~$"
-    - ".~"
+    - .
+    - ~
   filenames_exact:
-    - "Thumbs.db"
-    - ".DS_Store"
-    - "desktop.ini"
+    - thumbs.db
+    - desktop.ini
 
-# Logging configuration
+# Email notifications (optional)
+email:
+  enabled: false
+  # smtp_host: smtp.gmail.com
+  # smtp_port: 587
+  # username: your-email@gmail.com
+  # password: your-app-password
+  # from: your-email@gmail.com
+  # to:
+  #   - recipient@example.com
+
+# Logging
 logging:
-  file_path: logs/sync.log
   level: INFO
+  file_path: c:\logs\sync.log
