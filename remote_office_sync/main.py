@@ -293,6 +293,22 @@ class SyncRunner:
                 self.file_ops.copy_file(str(right_conflict_path), str(left_conflict_path))
                 logger.info(f"[RENAME_CONFLICT] Copied conflict version to left: {job.file_path}")
 
+                # Delete the conflicting case variant from both sides
+                # (For case conflicts, job.file_path is the variant case we're removing)
+                if right_conflict_path.exists():
+                    self.file_ops.delete_file(str(right_conflict_path))
+                    logger.info(
+                        f"[RENAME_CONFLICT] Deleted conflicting case variant on right: "
+                        f"{job.file_path}"
+                    )
+
+                if left_conflict_path.exists():
+                    self.file_ops.delete_file(str(left_conflict_path))
+                    logger.info(
+                        f"[RENAME_CONFLICT] Deleted conflicting case variant on left: "
+                        f"{job.file_path}"
+                    )
+
                 # Record conflict alert
                 current = self.state_db.load_state().get(job.file_path)
                 if current:

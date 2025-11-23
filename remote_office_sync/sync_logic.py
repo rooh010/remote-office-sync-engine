@@ -72,8 +72,18 @@ class SyncEngine:
         jobs = []
         processed = set()
 
-        # First detect case-only changes (before renames, to avoid conflicts)
-        case_changes = self._detect_case_changes()
+        # First detect case-only changes and case conflicts
+        case_changes, case_conflicts = self._detect_case_changes()
+
+        # Handle case conflicts (both sides changed case differently)
+        for prev_path, (left_case, right_case) in case_conflicts.items():
+            processed.add(prev_path)
+            processed.add(left_case)
+            processed.add(right_case)
+            # Treat as a rename conflict with different case changes
+            jobs.extend(self._handle_case_conflict(prev_path, left_case, right_case))
+
+        # Handle simple case changes (only one side changed case)
         for curr_path, prev_path in case_changes.items():
             processed.add(prev_path)
             processed.add(curr_path)
@@ -196,14 +206,20 @@ class SyncEngine:
 
         return rename_map, rename_conflicts
 
-    def _detect_case_changes(self) -> Dict[str, str]:
-        """Detect case-only changes by comparing current and previous state.
+    def _detect_case_changes(self) -> tuple[Dict[str, str], Dict[str, tuple[str, str]]]:
+        """Detect case-only changes and case conflicts.
 
-        This detects when a file's path case has changed on either side.
+        This detects when a file's path case has changed on either or both sides.
         Returns:
-            Dict mapping current_path -> previous_path for case-only changes
+            Tuple of (case_changes, case_conflicts) where:
+            - case_changes: Dict mapping current_path -> previous_path for
+              single-side case changes
+            - case_conflicts: Dict mapping previous_path -> (left_case,
+              right_case) for both-side conflicts
         """
         case_changes = {}
+        case_conflicts = {}
+        processed = set()
 
         # Check for case changes in current state vs previous state
         for curr_path, curr_meta in self.current_state.items():
@@ -218,14 +234,60 @@ class SyncEngine:
             curr_lower = curr_path.lower()
             for prev_path, prev_meta in self.previous_state.items():
                 if prev_path.lower() == curr_lower and prev_path != curr_path:
-                    # Found case-only change in the merge_scans key
-                    logger.info(
-                        f"Detected case change in canonical path: {prev_path} -> {curr_path}"
-                    )
-                    case_changes[curr_path] = prev_path
+                    if prev_path not in processed:
+                        processed.add(prev_path)
+                        # Found case-only change - check if this is a conflict
+                        # (both sides changed case to different values)
+                        logger.info(
+                            f"Detected case change in canonical path: {prev_path} -> {curr_path}"
+                        )
+                        case_changes[curr_path] = prev_path
                     break
 
-        return case_changes
+        # Detect case conflicts: same file with different cases on both sides
+        # This happens when both left and right changed case to different values
+        for path_lower, variants in self._group_by_lower_case().items():
+            if len(variants) == 2:
+                # Check if both variants exist in current state (case conflict)
+                if variants[0] in self.current_state and variants[1] in self.current_state:
+                    left_var = variants[0]
+                    right_var = variants[1]
+                    meta_left = self.current_state[left_var]
+                    meta_right = self.current_state[right_var]
+
+                    # Conflict if both exist on both sides (merge_scans matched both)
+                    if meta_left.exists_left and meta_right.exists_right:
+                        # This is a case conflict - remove from case_changes if present
+                        if left_var in case_changes:
+                            del case_changes[left_var]
+                        if right_var in case_changes:
+                            del case_changes[right_var]
+
+                        # Find the original path from previous state
+                        for prev_path in self.previous_state.keys():
+                            if prev_path.lower() == path_lower:
+                                logger.warning(
+                                    f"Case conflict detected: {prev_path} -> "
+                                    f"{left_var} (left) vs {right_var} (right)"
+                                )
+                                case_conflicts[prev_path] = (left_var, right_var)
+                                break
+
+        return case_changes, case_conflicts
+
+    def _group_by_lower_case(self) -> Dict[str, list]:
+        """Group current state paths by lowercase variant.
+
+        Returns:
+            Dict mapping lowercase path -> list of actual case variants
+        """
+        grouped = {}
+        for path in self.current_state.keys():
+            lower = path.lower()
+            if lower not in grouped:
+                grouped[lower] = []
+            grouped[lower].append(path)
+        return grouped
 
     def _handle_case_change(self, prev_path: str, curr_path: str) -> List[SyncJob]:
         """Handle a case-only change in file path.
@@ -279,6 +341,41 @@ class SyncEngine:
                     details=f"Case change: {prev_path} -> {curr_path}",
                 )
             )
+
+        return jobs
+
+    def _handle_case_conflict(
+        self, prev_path: str, left_case: str, right_case: str
+    ) -> List[SyncJob]:
+        """Handle a case conflict where both sides changed case to different values.
+
+        Args:
+            prev_path: Original file path (from previous state)
+            left_case: Case variant on left side
+            right_case: Case variant on right side
+
+        Returns:
+            List of sync jobs to resolve the conflict
+        """
+        jobs = []
+
+        # Use left case as the "winner" and save right case as conflict file
+        logger.info(
+            f"Handling case conflict: {prev_path} -> " f"{left_case} (left) vs {right_case} (right)"
+        )
+
+        # Strategy: Create a RENAME_CONFLICT action similar to rename conflicts
+        # This will:
+        # 1. Create a conflict file from right case variant on both sides
+        # 2. Keep left case variant as the main file on both sides
+        jobs.append(
+            SyncJob(
+                action=SyncAction.RENAME_CONFLICT,
+                file_path=right_case,
+                src_path=left_case,
+                details=f"Case conflict: {prev_path} -> {left_case} (main) vs {right_case}",
+            )
+        )
 
         return jobs
 
