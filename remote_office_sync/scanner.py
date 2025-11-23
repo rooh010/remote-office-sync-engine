@@ -11,7 +11,7 @@ logger = get_logger()
 
 @dataclass
 class FileMetadata:
-    """Metadata for a single file."""
+    """Metadata for a single file or directory."""
 
     relative_path: str
     exists_left: bool
@@ -30,6 +30,10 @@ class FileMetadata:
         if not isinstance(other, FileMetadata):
             return False
         return self.relative_path == other.relative_path
+
+    def is_directory(self) -> bool:
+        """Check if this metadata represents a directory (size == -1)."""
+        return self.size_left == -1 if self.exists_left else self.size_right == -1
 
 
 class Scanner:
@@ -78,6 +82,7 @@ class Scanner:
 
         Returns:
             Dict mapping relative path to (mtime, size) tuple
+            For directories: size is -1 (sentinel value)
         """
         result = {}
         root = Path(root_path)
@@ -104,10 +109,23 @@ class Scanner:
                         result[relative_path] = (stat_info.st_mtime, stat_info.st_size)
                     except (OSError, IOError) as e:
                         logger.warning(f"Could not stat file {relative_path}: {e}")
+                elif file_path.is_dir():
+                    # Track empty directories
+                    # Check if directory is empty (no files or subdirectories)
+                    if not any(file_path.iterdir()):
+                        relative_path = str(file_path.relative_to(root)).replace("\\", "/")
+
+                        # Use -1 as sentinel for directory size
+                        try:
+                            stat_info = file_path.stat()
+                            result[relative_path] = (stat_info.st_mtime, -1)
+                            logger.debug(f"Found empty directory: {relative_path}")
+                        except (OSError, IOError) as e:
+                            logger.warning(f"Could not stat directory {relative_path}: {e}")
         except (OSError, IOError) as e:
             logger.error(f"Error scanning directory {root_path}: {e}")
 
-        logger.info(f"Scanned {len(result)} files in {root_path}")
+        logger.info(f"Scanned {len(result)} items (files and empty directories) in {root_path}")
         return result
 
     def merge_scans(

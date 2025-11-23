@@ -25,6 +25,10 @@ class SyncAction(Enum):
     RENAME_LEFT = "RENAME_LEFT"
     RENAME_RIGHT = "RENAME_RIGHT"
     RENAME_CONFLICT = "RENAME_CONFLICT"
+    CREATE_DIR_LEFT = "CREATE_DIR_LEFT"
+    CREATE_DIR_RIGHT = "CREATE_DIR_RIGHT"
+    DELETE_DIR_LEFT = "DELETE_DIR_LEFT"
+    DELETE_DIR_RIGHT = "DELETE_DIR_RIGHT"
     NOOP = "NOOP"
 
 
@@ -123,6 +127,49 @@ class SyncEngine:
 
             prev_metadata = self.previous_state.get(file_path)
             jobs.extend(self._apply_sync_rules(file_path, prev_metadata, curr_metadata))
+
+        # Handle deleted directories (existed in previous state but not current)
+        for file_path, prev_metadata in self.previous_state.items():
+            if file_path in processed or file_path in self.current_state:
+                continue
+
+            # Check if this was a directory
+            if prev_metadata.is_directory():
+                # Directory was deleted - remove from other side
+                if prev_metadata.exists_left and not prev_metadata.exists_right:
+                    # Was only on left, now gone -> delete from left
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_LEFT,
+                            file_path=file_path,
+                            details="Empty directory deleted",
+                        )
+                    )
+                elif prev_metadata.exists_right and not prev_metadata.exists_left:
+                    # Was only on right, now gone -> delete from right
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_RIGHT,
+                            file_path=file_path,
+                            details="Empty directory deleted",
+                        )
+                    )
+                elif prev_metadata.exists_left and prev_metadata.exists_right:
+                    # Was on both sides, now gone -> delete from both
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_LEFT,
+                            file_path=file_path,
+                            details="Empty directory deleted from both sides",
+                        )
+                    )
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_RIGHT,
+                            file_path=file_path,
+                            details="Empty directory deleted from both sides",
+                        )
+                    )
 
         logger.info(f"Generated {len(jobs)} sync jobs")
         return jobs
@@ -552,17 +599,40 @@ class SyncEngine:
     def _apply_sync_rules(
         self, file_path: str, prev_metadata: Optional[FileMetadata], curr_metadata: FileMetadata
     ) -> List[SyncJob]:
-        """Apply sync rules for a file.
+        """Apply sync rules for a file or directory.
 
         Args:
-            file_path: File path
-            prev_metadata: Previous state (None if new file)
+            file_path: File or directory path
+            prev_metadata: Previous state (None if new file/directory)
             curr_metadata: Current state
 
         Returns:
             List of sync jobs
         """
         jobs = []
+
+        # Handle directories
+        if curr_metadata.is_directory():
+            # Empty directory only on left -> create on right
+            if curr_metadata.exists_left and not curr_metadata.exists_right:
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.CREATE_DIR_RIGHT,
+                        file_path=file_path,
+                        details="New empty directory on left",
+                    )
+                )
+            # Empty directory only on right -> create on left
+            elif curr_metadata.exists_right and not curr_metadata.exists_left:
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.CREATE_DIR_LEFT,
+                        file_path=file_path,
+                        details="New empty directory on right",
+                    )
+                )
+            # Directory exists on both sides -> no action needed
+            return jobs
 
         # Rule: File only on left
         if curr_metadata.exists_left and not curr_metadata.exists_right:

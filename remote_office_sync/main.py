@@ -350,6 +350,44 @@ class SyncRunner:
                 self.file_ops.rename_file(str(old_right_path), str(new_right_path))
                 logger.info(f"[RENAME_RIGHT] {job.file_path} -> {job.dst_path}")
 
+            elif job.action == SyncAction.CREATE_DIR_LEFT:
+                # Create empty directory on left
+                dir_path = Path(self.config.left_root) / job.file_path
+                self.file_ops.ensure_directory(str(dir_path))
+                logger.info(f"[CREATE_DIR_LEFT] Created directory: {job.file_path}")
+
+            elif job.action == SyncAction.CREATE_DIR_RIGHT:
+                # Create empty directory on right
+                dir_path = Path(self.config.right_root) / job.file_path
+                self.file_ops.ensure_directory(str(dir_path))
+                logger.info(f"[CREATE_DIR_RIGHT] Created directory: {job.file_path}")
+
+            elif job.action == SyncAction.DELETE_DIR_LEFT:
+                # Delete empty directory from left
+                dir_path = Path(self.config.left_root) / job.file_path
+                if dir_path.exists() and dir_path.is_dir():
+                    # Only delete if still empty
+                    if not any(dir_path.iterdir()):
+                        dir_path.rmdir()
+                        logger.info(f"[DELETE_DIR_LEFT] Deleted empty directory: {job.file_path}")
+                    else:
+                        logger.warning(
+                            f"[DELETE_DIR_LEFT] Skipping {job.file_path}: " f"directory not empty"
+                        )
+
+            elif job.action == SyncAction.DELETE_DIR_RIGHT:
+                # Delete empty directory from right
+                dir_path = Path(self.config.right_root) / job.file_path
+                if dir_path.exists() and dir_path.is_dir():
+                    # Only delete if still empty
+                    if not any(dir_path.iterdir()):
+                        dir_path.rmdir()
+                        logger.info(f"[DELETE_DIR_RIGHT] Deleted empty directory: {job.file_path}")
+                    else:
+                        logger.warning(
+                            f"[DELETE_DIR_RIGHT] Skipping {job.file_path}: " f"directory not empty"
+                        )
+
             elif job.action == SyncAction.NOOP:
                 logger.info(f"[NOOP] {job.file_path}: {job.details}")
 
