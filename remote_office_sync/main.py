@@ -298,9 +298,12 @@ class SyncRunner:
                         f"[RENAME_CONFLICT] Created conflict file on right: "
                         f"{right_conflict_file}"
                     )
-                    # Copy conflict file to left
-                    conflict_name = Path(right_conflict_file).name
-                    left_conflict_file = Path(self.config.left_root) / conflict_name
+                    # Copy conflict file to left (preserve directory structure)
+                    right_conflict_relative = Path(right_conflict_file).relative_to(
+                        self.config.right_root
+                    )
+                    left_conflict_file = Path(self.config.left_root) / right_conflict_relative
+                    self.file_ops.ensure_directory(str(left_conflict_file.parent))
                     self.file_ops.copy_file(str(right_conflict_file), str(left_conflict_file))
                     logger.info(
                         f"[RENAME_CONFLICT] Copied conflict file to left: " f"{left_conflict_file}"

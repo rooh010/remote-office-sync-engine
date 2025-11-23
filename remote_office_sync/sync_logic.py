@@ -263,31 +263,35 @@ class SyncEngine:
                 meta_left = self.current_state[left_var]
                 meta_right = self.current_state[right_var]
 
-                # Conflict if one exists only on left and the other only on right
-                # OR if they both exist on both sides
-                has_case_conflict = (meta_left.exists_left and meta_right.exists_right) or (
-                    meta_left.exists_left
-                    and not meta_left.exists_right
-                    and meta_right.exists_right
-                    and not meta_right.exists_left
-                )
+                # To be a true conflict, BOTH sides must have changed case
+                # Check if there's a previous state entry that matches case-insensitively
+                prev_path = None
+                for p in self.previous_state.keys():
+                    if p.lower() == path_lower:
+                        prev_path = p
+                        break
 
-                if has_case_conflict:
+                if prev_path is None:
+                    # No previous state - can't be a case conflict
+                    continue
+
+                # Check if both sides actually changed from the previous case
+                left_changed_case = left_var != prev_path and meta_left.exists_left
+                right_changed_case = right_var != prev_path and meta_right.exists_right
+
+                # Only a conflict if BOTH sides changed case to DIFFERENT values
+                if left_changed_case and right_changed_case and left_var != right_var:
                     # This is a case conflict - remove from case_changes if present
                     if left_var in case_changes:
                         del case_changes[left_var]
                     if right_var in case_changes:
                         del case_changes[right_var]
 
-                    # Find the original path from previous state
-                    for prev_path in self.previous_state.keys():
-                        if prev_path.lower() == path_lower:
-                            logger.warning(
-                                f"Case conflict detected: {prev_path} -> "
-                                f"{left_var} (left) vs {right_var} (right)"
-                            )
-                            case_conflicts[prev_path] = (left_var, right_var)
-                            break
+                    logger.warning(
+                        f"Case conflict detected: {prev_path} -> "
+                        f"{left_var} (left) vs {right_var} (right)"
+                    )
+                    case_conflicts[prev_path] = (left_var, right_var)
 
         return case_changes, case_conflicts
 
