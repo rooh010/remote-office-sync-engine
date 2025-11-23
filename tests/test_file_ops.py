@@ -104,7 +104,7 @@ class TestFileOps:
         conflict_path = file_ops.create_clash_file(str(original), is_left=True)
 
         assert Path(conflict_path).exists()
-        assert "CONFLICT" in conflict_path
+        assert "conflict" in conflict_path.lower()
         assert original.read_text() == "content"
 
     def test_ensure_directory(self, temp_dirs):

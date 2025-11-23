@@ -161,11 +161,12 @@ class FileOps:
             if not file_path.exists():
                 raise FileOpsError(f"File does not exist: {path}")
 
-            # Create clash filename: original_name.CONFLICT.timestamp.ext
+            # Create clash filename: original_name.conflict.timestamp.ext
+            # Use lowercase 'conflict' to match scanner normalization on Windows
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             stem = file_path.stem
             suffix = file_path.suffix
-            clash_name = f"{stem}.CONFLICT.{timestamp}{suffix}"
+            clash_name = f"{stem}.conflict.{timestamp}{suffix}"
             clash_path = file_path.parent / clash_name
 
             # Copy original to clash location

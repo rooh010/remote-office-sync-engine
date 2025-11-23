@@ -94,7 +94,7 @@ Conflict: MODIFY_MODIFY
 - Current: Left=200, Right=150 (both changed!)
 - **Action**:
   - Determine which is newer (left=200 is newer)
-  - Save older version as `report.CONFLICT.20251122_143052.docx`
+  - Save older version as `report.conflict.20251122_143052.docx`
   - Keep newer version as main file
   - Run second sync to sync conflict file to both sides
 
@@ -181,13 +181,13 @@ DB:    mtime_left=200, mtime_right=200
 5. Policy: `clash` (default)
 6. **Actions**:
    - Compare mtimes: left=300 > right=250 (left is newer)
-   - Create `report.CONFLICT.20251122_143052.docx` from right (older)
+   - Create `report.conflict.20251122_143052.docx` from right (older)
    - Copy left → right (newer becomes main)
 7. **Second Sync** (automatic):
    - Sync the conflict file to left side
 8. **Result**: Both sides have:
    - `report.docx` (newer content from left, mtime=300)
-   - `report.CONFLICT.20251122_143052.docx` (older content from right)
+   - `report.conflict.20251122_143052.docx` (older content from right)
 
 ## Key Points
 
