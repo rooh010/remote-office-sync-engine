@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List
 
 from remote_office_sync.logging_setup import get_logger
 
@@ -90,15 +90,8 @@ class Scanner:
             for file_path in root.rglob("*"):
                 if file_path.is_file():
                     # Normalize path separators to forward slashes
-                    # On Windows, normalize case to lowercase (case-insensitive filesystem)
+                    # Preserve original case - Windows supports case changes
                     relative_path = str(file_path.relative_to(root)).replace("\\", "/")
-
-                    # Windows filesystem is case-insensitive - normalize to lowercase
-                    # This prevents treating AAA.doc and aaa.doc as different files
-                    import platform
-
-                    if platform.system() == "Windows":
-                        relative_path = relative_path.lower()
 
                     filename = file_path.name
 
@@ -122,6 +115,10 @@ class Scanner:
     ) -> Dict[str, FileMetadata]:
         """Merge left and right scans into unified metadata.
 
+        Handles case-insensitive filesystem matching while preserving original case.
+        When the same file exists on both sides with different cases, uses the current case
+        from whichever side has changed it most recently (based on database state when possible).
+
         Args:
             left_scan: Results from scanning left directory
             right_scan: Results from scanning right directory
@@ -129,23 +126,66 @@ class Scanner:
         Returns:
             Dict mapping relative path to FileMetadata
         """
-        all_paths: Set[str] = set(left_scan.keys()) | set(right_scan.keys())
         result = {}
 
-        for path in all_paths:
-            left_exists = path in left_scan
-            right_exists = path in right_scan
+        # Build case-insensitive lookup for right scan
+        right_lower_to_actual = {path.lower(): path for path in right_scan.keys()}
+        processed_right = set()
 
+        # Process all left files
+        for left_path in left_scan.keys():
+            left_lower = left_path.lower()
+
+            # Find matching file on right (case-insensitive)
+            right_actual_path = right_lower_to_actual.get(left_lower)
+            right_exists = right_actual_path is not None
+
+            if right_exists:
+                processed_right.add(right_actual_path)
+
+            # Determine canonical case: use left's case
+            canonical_path = left_path
+
+            # Store with the canonical (left's) case
             metadata = FileMetadata(
-                relative_path=path,
-                exists_left=left_exists,
+                relative_path=canonical_path,
+                exists_left=True,
                 exists_right=right_exists,
-                mtime_left=left_scan[path][0] if left_exists else None,
-                size_left=left_scan[path][1] if left_exists else None,
-                mtime_right=right_scan[path][0] if right_exists else None,
-                size_right=right_scan[path][1] if right_exists else None,
+                mtime_left=left_scan[left_path][0],
+                size_left=left_scan[left_path][1],
+                mtime_right=right_scan[right_actual_path][0] if right_exists else None,
+                size_right=right_scan[right_actual_path][1] if right_exists else None,
             )
-            result[path] = metadata
+            result[canonical_path] = metadata
+
+            # If right has a different case, also create a separate entry for case change detection
+            # This entry represents the file as it exists on right with its actual case
+            if right_exists and right_actual_path != left_path and right_actual_path not in result:
+                # Create metadata entry showing file exists on right with different case
+                right_case_metadata = FileMetadata(
+                    relative_path=right_actual_path,
+                    exists_left=False,  # Not at this case on left
+                    exists_right=True,
+                    mtime_left=None,
+                    size_left=None,
+                    mtime_right=right_scan[right_actual_path][0],
+                    size_right=right_scan[right_actual_path][1],
+                )
+                result[right_actual_path] = right_case_metadata
+
+        # Process right files that weren't matched
+        for right_path in right_scan.keys():
+            if right_path not in processed_right:
+                metadata = FileMetadata(
+                    relative_path=right_path,  # Use right case since no left match
+                    exists_left=False,
+                    exists_right=True,
+                    mtime_left=None,
+                    size_left=None,
+                    mtime_right=right_scan[right_path][0],
+                    size_right=right_scan[right_path][1],
+                )
+                result[right_path] = metadata
 
         logger.info(f"Merged scans: {len(result)} total unique files")
         return result

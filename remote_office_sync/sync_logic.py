@@ -72,11 +72,20 @@ class SyncEngine:
         jobs = []
         processed = set()
 
-        # First detect renames (including case changes and conflicts)
+        # First detect case-only changes (before renames, to avoid conflicts)
+        case_changes = self._detect_case_changes()
+        for curr_path, prev_path in case_changes.items():
+            processed.add(prev_path)
+            processed.add(curr_path)
+            jobs.extend(self._handle_case_change(prev_path, curr_path))
+
+        # Then detect renames (including case changes and conflicts)
         rename_map, rename_conflicts = self._detect_renames()
 
         # Handle rename conflicts
         for old_path, (left_new, right_new) in rename_conflicts.items():
+            if old_path in processed or left_new in processed or right_new in processed:
+                continue
             processed.add(old_path)
             processed.add(left_new)
             processed.add(right_new)
@@ -84,6 +93,8 @@ class SyncEngine:
 
         # Handle clean renames
         for old_path, new_path in rename_map.items():
+            if old_path in processed or new_path in processed:
+                continue
             processed.add(old_path)
             processed.add(new_path)
             jobs.extend(self._handle_rename(old_path, new_path))
@@ -184,6 +195,92 @@ class SyncEngine:
                 logger.info(f"Detected rename on {side}: {old_path} -> {new_path}")
 
         return rename_map, rename_conflicts
+
+    def _detect_case_changes(self) -> Dict[str, str]:
+        """Detect case-only changes by comparing current and previous state.
+
+        This detects when a file's path case has changed on either side.
+        Returns:
+            Dict mapping current_path -> previous_path for case-only changes
+        """
+        case_changes = {}
+
+        # Check for case changes in current state vs previous state
+        for curr_path, curr_meta in self.current_state.items():
+            # Check if there's a previous entry with same path in different case
+            prev_meta = self.previous_state.get(curr_path)
+
+            if prev_meta is not None:
+                # Exact match exists - no case change for this path
+                continue
+
+            # Look for case-insensitive match in previous state
+            curr_lower = curr_path.lower()
+            for prev_path, prev_meta in self.previous_state.items():
+                if prev_path.lower() == curr_lower and prev_path != curr_path:
+                    # Found case-only change in the merge_scans key
+                    logger.info(
+                        f"Detected case change in canonical path: {prev_path} -> {curr_path}"
+                    )
+                    case_changes[curr_path] = prev_path
+                    break
+
+        return case_changes
+
+    def _handle_case_change(self, prev_path: str, curr_path: str) -> List[SyncJob]:
+        """Handle a case-only change in file path.
+
+        Args:
+            prev_path: Previous file path (old case)
+            curr_path: Current file path (new case)
+
+        Returns:
+            List of sync jobs to propagate the case change
+        """
+        jobs = []
+        curr_meta = self.current_state[curr_path]
+
+        # Strategy: Determine which side has the new case (curr_path)
+        # The side that has curr_path is the one that changed the case
+        # We need to propagate the case change to the other side
+
+        # Check if the new case exists on current filesystem (from scanner perspective)
+        # Scanner gives us the actual cases for each side
+        # curr_meta tells us which sides have the file (case-insensitive match)
+
+        # Since merge_scans uses left as canonical, we use left's case
+        # If left has the file, it exists_left will be true with left's case
+        # The right side was matched case-insensitively so it exists_right
+        # If the right side has a different case, we need to rename it
+
+        # The simplest approach: left is always canonical (uses left case),
+        # so we always propagate left's case to right
+        if curr_meta.exists_left and curr_meta.exists_right:
+            # File exists on both - rename right to match left's case
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.RENAME_RIGHT,
+                    file_path=prev_path,
+                    dst_path=curr_path,
+                    details=f"Case change: {prev_path} -> {curr_path}",
+                )
+            )
+        elif curr_meta.exists_left and not curr_meta.exists_right:
+            # File only on left - no need to rename (nothing on right)
+            # This shouldn't happen if case change was detected properly
+            pass
+        elif curr_meta.exists_right and not curr_meta.exists_left:
+            # File only on right - rename left to match right's case
+            jobs.append(
+                SyncJob(
+                    action=SyncAction.RENAME_LEFT,
+                    file_path=prev_path,
+                    dst_path=curr_path,
+                    details=f"Case change: {prev_path} -> {curr_path}",
+                )
+            )
+
+        return jobs
 
     def _handle_rename_conflict(
         self, old_path: str, left_new: str, right_new: str

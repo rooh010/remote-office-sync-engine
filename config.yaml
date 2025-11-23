@@ -23,5 +23,5 @@ email:
     enabled: false
 
 logging:
-    level: INFO
-    file_path: sync.log
+    level: DEBUG
+    file_path: "sync.log"

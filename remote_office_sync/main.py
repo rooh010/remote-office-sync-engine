@@ -288,6 +288,22 @@ class SyncRunner:
                         )
                     )
 
+            elif job.action == SyncAction.RENAME_LEFT:
+                # Rename file on left side from job.file_path to job.dst_path
+                old_left_path = Path(self.config.left_root) / job.file_path
+                new_left_path = Path(self.config.left_root) / job.dst_path
+                self.file_ops.ensure_directory(str(new_left_path.parent))
+                self.file_ops.rename_file(str(old_left_path), str(new_left_path))
+                logger.info(f"[RENAME_LEFT] {job.file_path} -> {job.dst_path}")
+
+            elif job.action == SyncAction.RENAME_RIGHT:
+                # Rename file on right side from job.file_path to job.dst_path
+                old_right_path = Path(self.config.right_root) / job.file_path
+                new_right_path = Path(self.config.right_root) / job.dst_path
+                self.file_ops.ensure_directory(str(new_right_path.parent))
+                self.file_ops.rename_file(str(old_right_path), str(new_right_path))
+                logger.info(f"[RENAME_RIGHT] {job.file_path} -> {job.dst_path}")
+
             elif job.action == SyncAction.NOOP:
                 logger.info(f"[NOOP] {job.file_path}: {job.details}")
 
