@@ -1,5 +1,6 @@
 """Logging setup for the sync service."""
 
+import getpass
 import logging
 import logging.handlers
 from pathlib import Path
@@ -10,14 +11,16 @@ def setup_logging(
     log_level: str = "INFO",
     max_bytes: int = 10 * 1024 * 1024,
     backup_count: int = 5,
+    rotation_enabled: bool = True,
 ) -> logging.Logger:
     """Set up logging with file and console handlers.
 
     Args:
         log_file: Path to log file
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
-        max_bytes: Max size of log file before rotation
+        max_bytes: Max size of log file before rotation (in bytes)
         backup_count: Number of backup files to keep
+        rotation_enabled: Whether to enable log rotation
 
     Returns:
         Configured logger instance
@@ -33,21 +36,31 @@ def setup_logging(
     # Remove existing handlers to avoid duplicates
     logger.handlers.clear()
 
-    # File handler with rotation
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-    )
+    # Get current user
+    try:
+        username = getpass.getuser()
+    except Exception:
+        username = "unknown"
+
+    # File handler with optional rotation
+    if rotation_enabled:
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+        )
+    else:
+        file_handler = logging.FileHandler(log_file)
+
     file_handler.setLevel(getattr(logging, log_level.upper()))
 
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(getattr(logging, log_level.upper()))
 
-    # Formatter
+    # Formatter with username
     formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        f"%(asctime)s - %(name)s - %(levelname)s - [{username}] - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     file_handler.setFormatter(formatter)

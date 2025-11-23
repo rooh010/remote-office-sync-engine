@@ -135,6 +135,21 @@ class Config:
         """Get log level."""
         return self._config.get("logging", {}).get("level", "INFO")
 
+    @property
+    def log_rotation_enabled(self) -> bool:
+        """Get whether log rotation is enabled."""
+        return self._config.get("logging", {}).get("rotation_enabled", True)
+
+    @property
+    def log_max_size_mb(self) -> int:
+        """Get max log file size in MB before rotation."""
+        return self._config.get("logging", {}).get("max_size_mb", 10)
+
+    @property
+    def log_backup_count(self) -> int:
+        """Get number of backup log files to keep."""
+        return self._config.get("logging", {}).get("backup_count", 5)
+
     def to_dict(self) -> Dict[str, Any]:
         """Return config as dictionary."""
         return self._config.copy()

@@ -51,15 +51,16 @@ A Python-based bidirectional file synchronization tool for syncing between local
    pip install -r requirements.txt
    ```
 
-4. **Create config file**
+4. **Create config file from template**
    ```bash
-   copy config.example.yaml config.yaml
+   copy config.template.yaml config.yaml
    ```
-   Edit `config.yaml` with your paths:
+   Edit `config.yaml` with your environment-specific paths and settings:
    ```yaml
    left_root: C:\pdrive_local
    right_root: P:\
    ```
+   **Note:** `config.yaml` is gitignored and should not be committed. Keep `config.template.yaml` updated in the repository with your standard configuration.
 
 ## Usage
 
@@ -113,11 +114,26 @@ ignore:
 logging:
   level: INFO
   file_path: sync.log
+  rotation_enabled: true
+  max_size_mb: 10
+  backup_count: 5
 ```
 
 **Important:** Windows paths in YAML must be quoted and use either:
 - Double backslashes: `"C:\\Users\\Documents"`
 - Forward slashes: `"C:/Users/Documents"`
+
+### Logging
+
+The sync engine includes comprehensive logging with automatic log rotation:
+
+- **level**: Log verbosity (DEBUG, INFO, WARNING, ERROR)
+- **file_path**: Location of log file
+- **rotation_enabled**: Enable/disable automatic log rotation (default: true)
+- **max_size_mb**: Maximum log file size before rotation (default: 10 MB)
+- **backup_count**: Number of old log files to keep (default: 5)
+
+Log files include the username of the user running the sync process, useful for tracking who made changes in multi-user environments. Set `rotation_enabled: false` to disable rotation and keep all logs in a single file for debugging.
 
 ### Email Notifications (Optional)
 
@@ -301,6 +317,7 @@ For typical use cases:
 
 ## Future Enhancements
 
+- **Windows Service** - Convert to a Windows Service for automated scheduled execution without user interaction
 - Real-time file watching (FSEvents)
 - Scheduled sync via Windows Task Scheduler
 - Incremental sync (only changed files)

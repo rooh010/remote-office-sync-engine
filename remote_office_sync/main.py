@@ -33,7 +33,13 @@ class SyncRunner:
             config_path: Path to config.yaml file
         """
         self.config = load_config(config_path)
-        setup_logging(self.config.log_file_path, self.config.log_level)
+        setup_logging(
+            self.config.log_file_path,
+            self.config.log_level,
+            max_bytes=self.config.log_max_size_mb * 1024 * 1024,
+            backup_count=self.config.log_backup_count,
+            rotation_enabled=self.config.log_rotation_enabled,
+        )
 
         # Detect filesystem mtime precision difference
         logger.info("Detecting filesystem modification time precision...")
