@@ -78,6 +78,7 @@ class SyncRunner:
 
         self.conflict_alerts: List[ConflictAlert] = []
         self.error_alerts: List[ErrorAlert] = []
+        self.content_conflicts_detected = False
 
     def run(self) -> bool:
         """Execute the sync process.
@@ -87,12 +88,17 @@ class SyncRunner:
         """
         try:
             logger.info("Starting sync engine")
-            conflicts_detected = self._run_sync_cycle()
+            self.content_conflicts_detected = False
+            self._run_sync_cycle()
 
-            # If conflicts were detected, run sync again to sync conflict files
-            if conflicts_detected:
-                logger.info("Conflicts detected - running second sync to sync conflict files")
+            # If content conflicts were detected, run sync again to sync conflict files
+            # Note: case conflicts don't need a second sync as they're already resolved
+            if self.content_conflicts_detected:
+                logger.info(
+                    "Content conflicts detected - running second sync to sync " "conflict files"
+                )
                 print("\nRunning second sync to sync conflict files...\n")
+                self.content_conflicts_detected = False
                 self._run_sync_cycle()
 
             return True
@@ -270,6 +276,8 @@ class SyncRunner:
                             right_size=current.size_right,
                         )
                     )
+                    # Mark that we have a content conflict needing a second sync
+                    self.content_conflicts_detected = True
 
             elif job.action == SyncAction.RENAME_CONFLICT:
                 # Handle rename conflict: right_new exists on right, left_new on left
