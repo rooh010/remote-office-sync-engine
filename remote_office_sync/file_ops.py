@@ -142,12 +142,15 @@ class FileOps:
             logger.error(f"Failed to rename file {old_path} to {new_path}: {e}")
             raise FileOpsError(f"Rename failed: {e}") from e
 
-    def create_clash_file(self, path: str, is_left: bool = True) -> str:
+    def create_clash_file(
+        self, path: str, is_left: bool = True, username: Optional[str] = None
+    ) -> str:
         """Create a timestamped clash version of a file.
 
         Args:
             path: Original file path
             is_left: Whether this is the left side copy (unused, kept for compatibility)
+            username: Username to include in conflict filename
 
         Returns:
             New clash file path
@@ -161,12 +164,17 @@ class FileOps:
             if not file_path.exists():
                 raise FileOpsError(f"File does not exist: {path}")
 
-            # Create clash filename: original_name.conflict.timestamp.ext
-            # Use lowercase 'conflict' to match scanner normalization on Windows
+            # Create clash filename with optional username
+            # Format: original_name.conflict.username.timestamp.ext
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             stem = file_path.stem
             suffix = file_path.suffix
-            clash_name = f"{stem}.conflict.{timestamp}{suffix}"
+
+            if username:
+                clash_name = f"{stem}.conflict.{username}.{timestamp}{suffix}"
+            else:
+                clash_name = f"{stem}.conflict.{timestamp}{suffix}"
+
             clash_path = file_path.parent / clash_name
 
             # Copy original to clash location

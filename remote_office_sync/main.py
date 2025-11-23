@@ -1,6 +1,7 @@
 """Main entry point for the sync engine."""
 
 import argparse
+import getpass
 import sys
 from pathlib import Path
 from typing import List
@@ -68,6 +69,12 @@ class SyncRunner:
             to_addrs=self.config.email_to,
         )
         self.email_notifier = EmailNotifier(email_config)
+
+        # Get current username for conflict tracking
+        try:
+            self.username = getpass.getuser()
+        except Exception:
+            self.username = "unknown"
 
         self.conflict_alerts: List[ConflictAlert] = []
         self.error_alerts: List[ErrorAlert] = []
@@ -229,7 +236,9 @@ class SyncRunner:
                     # Determine which is older and create conflict file from it
                     if left_mtime > right_mtime:
                         # Left is newer - create conflict from right (older)
-                        conflict_file = self.file_ops.create_clash_file(str(right_path))
+                        conflict_file = self.file_ops.create_clash_file(
+                            str(right_path), username=self.username
+                        )
                         self.file_ops.copy_file(str(left_path), str(right_path))
                         logger.info(
                             f"[CONFLICT] {job.file_path}: "
@@ -237,7 +246,9 @@ class SyncRunner:
                         )
                     else:
                         # Right is newer - create conflict from left (older)
-                        conflict_file = self.file_ops.create_clash_file(str(left_path))
+                        conflict_file = self.file_ops.create_clash_file(
+                            str(left_path), username=self.username
+                        )
                         self.file_ops.copy_file(str(right_path), str(left_path))
                         logger.info(
                             f"[CONFLICT] {job.file_path}: "
@@ -267,7 +278,9 @@ class SyncRunner:
                 )  # right_new on left
 
                 # Create conflict file from right version on right side
-                right_conflict_file = self.file_ops.create_clash_file(str(right_conflict_path))
+                right_conflict_file = self.file_ops.create_clash_file(
+                    str(right_conflict_path), username=self.username
+                )
                 logger.info(
                     f"[RENAME_CONFLICT] Created conflict file on right: {right_conflict_file}"
                 )
