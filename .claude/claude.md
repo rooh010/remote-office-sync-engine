@@ -1,5 +1,13 @@
 # Development Guidelines
 
+## ⚠️ IMPORTANT DISCLAIMER
+
+**THIS CODE IS FOR TESTING AND EDUCATIONAL PURPOSES ONLY.**
+
+This project is experimental and should NOT be used in any production environment. The author takes NO RESPONSIBILITY for any data loss, corruption, or other issues arising from the use of this code. Use at your own risk.
+
+---
+
 ## Project Context
 - Keep `project_spec/` subfolder up to date as the project spec evolves
 

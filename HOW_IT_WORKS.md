@@ -1,5 +1,11 @@
 # How the Sync Engine Works
 
+## ⚠️ TESTING PURPOSES ONLY
+
+**THIS CODE IS FOR TESTING AND EDUCATIONAL PURPOSES ONLY. DO NOT USE IN PRODUCTION ENVIRONMENTS. The author takes no responsibility for any data loss or issues arising from use of this code.**
+
+---
+
 ## Overview
 
 The Remote Office Sync Engine uses a **three-way comparison** to detect changes and determine what needs to sync. It compares:
