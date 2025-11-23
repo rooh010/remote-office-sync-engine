@@ -165,15 +165,15 @@ class FileOps:
                 raise FileOpsError(f"File does not exist: {path}")
 
             # Create clash filename with optional username
-            # Format: original_name.conflict.username.timestamp.ext
+            # Format: original_name.CONFLICT.username.timestamp.ext
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             stem = file_path.stem
             suffix = file_path.suffix
 
             if username:
-                clash_name = f"{stem}.conflict.{username}.{timestamp}{suffix}"
+                clash_name = f"{stem}.CONFLICT.{username}.{timestamp}{suffix}"
             else:
-                clash_name = f"{stem}.conflict.{timestamp}{suffix}"
+                clash_name = f"{stem}.CONFLICT.{timestamp}{suffix}"
 
             clash_path = file_path.parent / clash_name
 
