@@ -1,5 +1,11 @@
 # MVP Task List
 
+## ⚠️ TESTING PURPOSES ONLY
+
+**DISCLAIMER:** This document describes software for testing and educational purposes only. DO NOT use in production environments. The author takes no responsibility for any data loss or issues arising from use of this code.
+
+---
+
 **Remote Office File Sync Script (Python)**
 **Phase:** MVP 0.1
 

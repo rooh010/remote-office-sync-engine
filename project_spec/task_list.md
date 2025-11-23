@@ -1,5 +1,11 @@
 # Phased Approach To Build The Sync Service
 
+## ⚠️ TESTING AND EDUCATIONAL USE ONLY
+
+**IMPORTANT DISCLAIMER:** This project is for testing and educational purposes only. This software should NOT be used in any production environment. The author accepts NO RESPONSIBILITY for any data loss, file corruption, or other damages that may result from using this software. Use at your own risk.
+
+---
+
 ## Context
 
 Python script, later run as a Windows service on the file server.

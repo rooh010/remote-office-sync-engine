@@ -1,5 +1,11 @@
 # Remote Office Bi-directional File Sync - Product Requirements Document
 
+## ⚠️ TESTING AND EDUCATIONAL USE ONLY
+
+**IMPORTANT DISCLAIMER:** This product specification describes software intended for testing and educational purposes only. This software should NOT be deployed in any production environment. The author accepts NO RESPONSIBILITY for any data loss, file corruption, or other damages that may result from using this software. Users assume all risks associated with its use.
+
+---
+
 ## 1. Document Info
 
 Product name: Remote Office File Sync Script (Python)

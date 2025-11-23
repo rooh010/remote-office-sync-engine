@@ -1,5 +1,18 @@
 # Remote Office Sync Engine
 
+## ⚠️ IMPORTANT DISCLAIMER
+
+**THIS CODE IS FOR TESTING AND EDUCATIONAL PURPOSES ONLY.**
+
+- **DO NOT USE THIS CODE IN ANY PRODUCTION ENVIRONMENT**
+- This software is provided as-is, without any warranties or guarantees of any kind
+- The author takes NO RESPONSIBILITY for any data loss, corruption, or other issues that may arise from using this code
+- Use at your own risk - always maintain proper backups of your data
+- This is experimental software and has not been validated for production use
+- No support or maintenance is provided
+
+---
+
 A Python-based bidirectional file synchronization tool for syncing between local and network drives with intelligent conflict resolution, soft delete, and email notifications.
 
 ## Features
