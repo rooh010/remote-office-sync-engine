@@ -4,7 +4,7 @@ import argparse
 import getpass
 import sys
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from remote_office_sync.config_loader import ConfigError, load_config, load_config_from_env
 from remote_office_sync.email_notifications import (
@@ -16,7 +16,7 @@ from remote_office_sync.email_notifications import (
 from remote_office_sync.file_ops import FileOps, FileOpsError
 from remote_office_sync.filesystem_utils import detect_mtime_precision
 from remote_office_sync.logging_setup import get_logger, setup_logging
-from remote_office_sync.scanner import Scanner
+from remote_office_sync.scanner import FileMetadata, Scanner
 from remote_office_sync.soft_delete import SoftDeleteManager
 from remote_office_sync.state_db import StateDB
 from remote_office_sync.sync_logic import SyncAction, SyncEngine
@@ -150,6 +150,10 @@ class SyncRunner:
                     )
                 )
                 failed += 1
+
+        # Clean up state: merge case variant entries back to their canonical form
+        # After case conflicts are resolved, remove variant entries from state
+        self._cleanup_case_variants(current_state)
 
         # Save updated state
         logger.info("Saving sync state")
@@ -342,6 +346,47 @@ class SyncRunner:
         except FileOpsError as e:
             logger.error(f"File operation failed for {job.file_path}: {e}")
             return False
+
+    def _cleanup_case_variants(self, current_state: Dict[str, FileMetadata]) -> None:
+        """Remove case variant entries from state after conflicts are resolved.
+
+        After a case conflict is resolved, we have two entries in current_state:
+        one for the main case and one for the variant case. This removes the
+        variant entries so the next sync cycle doesn't detect them again.
+
+        Args:
+            current_state: Dictionary of file metadata to clean up
+        """
+        # Group paths by lowercase version
+        paths_by_lower = {}
+        for path in list(current_state.keys()):
+            lower = path.lower()
+            if lower not in paths_by_lower:
+                paths_by_lower[lower] = []
+            paths_by_lower[lower].append(path)
+
+        # Remove variant entries (keep only one path per logical file)
+        for lower, paths in paths_by_lower.items():
+            if len(paths) > 1:
+                # Multiple case variants exist - keep the one that exists on both sides
+                # or the main one, and remove the variant
+                main_entry = None
+                variant_entries = []
+
+                for path in paths:
+                    meta = current_state[path]
+                    if meta.exists_left and meta.exists_right:
+                        main_entry = path
+                    else:
+                        variant_entries.append(path)
+
+                # Remove variant entries from state
+                for variant in variant_entries:
+                    del current_state[variant]
+                    logger.debug(
+                        f"Removed case variant from state: {variant} "
+                        f"(kept main entry: {main_entry})"
+                    )
 
 
 def main() -> int:
