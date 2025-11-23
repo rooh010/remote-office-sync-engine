@@ -281,41 +281,41 @@ class SyncRunner:
 
             elif job.action == SyncAction.RENAME_CONFLICT:
                 # Handle rename conflict: right_new exists on right, left_new on left
-                # For case conflicts: create conflict file from variant, keep main case
-                right_conflict_path = Path(self.config.right_root) / job.file_path  # variant
-                left_main_path = Path(self.config.left_root) / job.src_path  # main
-                right_main_path = Path(self.config.right_root) / job.src_path  # main on right
-                left_conflict_path = Path(self.config.left_root) / job.file_path  # variant on left
+                # For case conflicts: keep main case file, create conflict from variant
+                # Expected result: main file on both sides + conflict file on both sides
 
-                # Create conflict file from the variant case on right side
-                if right_conflict_path.exists():
+                left_main_path = Path(self.config.left_root) / job.src_path
+                right_main_path = Path(self.config.right_root) / job.src_path
+                right_variant_path = Path(self.config.right_root) / job.file_path
+
+                # Step 1: Create conflict file from the variant (right side has it)
+                if right_variant_path.exists():
+                    # Create conflict file on right from variant
                     right_conflict_file = self.file_ops.create_clash_file(
-                        str(right_conflict_path), username=self.username
+                        str(right_variant_path), username=self.username
                     )
                     logger.info(
-                        f"[RENAME_CONFLICT] Created conflict file on right: {right_conflict_file}"
+                        f"[RENAME_CONFLICT] Created conflict file on right: "
+                        f"{right_conflict_file}"
                     )
-                    # Delete the original variant after creating conflict file
-                    self.file_ops.delete_file(str(right_conflict_path))
-                    logger.info(f"[RENAME_CONFLICT] Deleted variant case on right: {job.file_path}")
-
-                # Copy main case (winner) from left to right
-                self.file_ops.copy_file(str(left_main_path), str(right_main_path))
-                logger.info(
-                    f"[RENAME_CONFLICT] Copied main case from left to right: {job.src_path}"
-                )
-
-                # Create conflict file from variant on left side too
-                if left_conflict_path.exists():
-                    left_conflict_file = self.file_ops.create_clash_file(
-                        str(left_conflict_path), username=self.username
-                    )
+                    # Copy conflict file to left
+                    conflict_name = Path(right_conflict_file).name
+                    left_conflict_file = Path(self.config.left_root) / conflict_name
+                    self.file_ops.copy_file(str(right_conflict_file), str(left_conflict_file))
                     logger.info(
-                        f"[RENAME_CONFLICT] Created conflict file on left: {left_conflict_file}"
+                        f"[RENAME_CONFLICT] Copied conflict file to left: " f"{left_conflict_file}"
                     )
-                    # Delete the original variant
-                    self.file_ops.delete_file(str(left_conflict_path))
-                    logger.info(f"[RENAME_CONFLICT] Deleted variant case on left: {job.file_path}")
+                    # Delete the variant on right (we have it in conflict file now)
+                    self.file_ops.delete_file(str(right_variant_path), soft=False)
+                    logger.info(f"[RENAME_CONFLICT] Deleted variant on right: {job.file_path}")
+
+                # Step 2: Ensure main case exists on both sides
+                if left_main_path.exists() and not right_main_path.exists():
+                    # Copy main from left to right
+                    self.file_ops.copy_file(str(left_main_path), str(right_main_path))
+                    logger.info(
+                        f"[RENAME_CONFLICT] Copied main case from left to right: " f"{job.src_path}"
+                    )
 
                 # Record conflict alert
                 current = self.state_db.load_state().get(job.file_path)
