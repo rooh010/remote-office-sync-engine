@@ -65,8 +65,8 @@ def test_case_conflict_both_sides_different_case(config):
     engine = SyncEngine(config, previous_state, current_state)
     jobs = engine.generate_sync_jobs()
 
-    # Should generate RENAME_CONFLICT action
-    conflict_jobs = [j for j in jobs if j.action == SyncAction.RENAME_CONFLICT]
+    # Should generate CASE_CONFLICT action
+    conflict_jobs = [j for j in jobs if j.action == SyncAction.CASE_CONFLICT]
     assert len(conflict_jobs) == 1
     assert conflict_jobs[0].file_path in ["File.txt", "FILE.txt"]
 
@@ -197,8 +197,8 @@ def test_case_conflict_in_subdirectory(config):
     engine = SyncEngine(config, previous_state, current_state)
     jobs = engine.generate_sync_jobs()
 
-    # Should generate RENAME_CONFLICT action
-    conflict_jobs = [j for j in jobs if j.action == SyncAction.RENAME_CONFLICT]
+    # Should generate CASE_CONFLICT action
+    conflict_jobs = [j for j in jobs if j.action == SyncAction.CASE_CONFLICT]
     assert len(conflict_jobs) == 1
     assert "subdir/" in conflict_jobs[0].file_path
 
@@ -243,6 +243,193 @@ def test_mixed_case_variations(config):
     engine = SyncEngine(config, previous_state, current_state)
     jobs = engine.generate_sync_jobs()
 
-    # Should generate RENAME_CONFLICT action
-    conflict_jobs = [j for j in jobs if j.action == SyncAction.RENAME_CONFLICT]
+    # Should generate CASE_CONFLICT action
+    conflict_jobs = [j for j in jobs if j.action == SyncAction.CASE_CONFLICT]
     assert len(conflict_jobs) == 1
+
+
+def test_case_conflict_three_variants_ignored(config):
+    """Test that three simultaneous case variants do not crash and are ignored."""
+    previous_state = {
+        "file.txt": FileMetadata(
+            relative_path="file.txt",
+            exists_left=True,
+            exists_right=True,
+            mtime_left=100.0,
+            mtime_right=100.0,
+            size_left=10,
+            size_right=10,
+        )
+    }
+
+    # Current: three different case variants split across sides
+    current_state = {
+        "File.txt": FileMetadata(
+            relative_path="File.txt",
+            exists_left=True,
+            exists_right=False,
+            mtime_left=110.0,
+            mtime_right=None,
+            size_left=10,
+            size_right=None,
+        ),
+        "file.txt": FileMetadata(
+            relative_path="file.txt",
+            exists_left=False,
+            exists_right=True,
+            mtime_left=None,
+            mtime_right=110.0,
+            size_left=None,
+            size_right=10,
+        ),
+        "fILe.txt": FileMetadata(
+            relative_path="fILe.txt",
+            exists_left=True,
+            exists_right=False,
+            mtime_left=105.0,
+            mtime_right=None,
+            size_left=10,
+            size_right=None,
+        ),
+    }
+
+    engine = SyncEngine(config, previous_state, current_state)
+    jobs = engine.generate_sync_jobs()
+
+    # Our detection only handles two variants; with three, no CASE_CONFLICT should be produced
+    assert all(j.action != SyncAction.CASE_CONFLICT for j in jobs)
+    assert all(j.action != SyncAction.RENAME_CONFLICT for j in jobs)
+
+
+def test_conflict_files_are_ignored_for_case_detection(config):
+    """Ensure files already named as conflict artifacts are not treated as case conflicts."""
+    previous_state = {}
+    current_state = {
+        "Doc.CONFLICT.user.20250101.txt": FileMetadata(
+            relative_path="Doc.CONFLICT.user.20250101.txt",
+            exists_left=True,
+            exists_right=True,
+            mtime_left=120.0,
+            mtime_right=120.0,
+            size_left=20,
+            size_right=20,
+        )
+    }
+
+    engine = SyncEngine(config, previous_state, current_state)
+    jobs = engine.generate_sync_jobs()
+
+    # No case-conflict or rename-conflict jobs should be generated for conflict artifacts
+    assert all(j.action not in {SyncAction.CASE_CONFLICT, SyncAction.RENAME_CONFLICT} for j in jobs)
+
+
+def test_case_conflict_right_newer(config):
+    """Case conflict where right has newer mtime; expect CASE_CONFLICT job."""
+    previous_state = {
+        "file.txt": FileMetadata(
+            relative_path="file.txt",
+            exists_left=True,
+            exists_right=True,
+            mtime_left=100.0,
+            mtime_right=100.0,
+            size_left=10,
+            size_right=10,
+        )
+    }
+
+    current_state = {
+        "FILE.txt": FileMetadata(
+            relative_path="FILE.txt",
+            exists_left=True,
+            exists_right=False,
+            mtime_left=110.0,
+            mtime_right=None,
+            size_left=10,
+            size_right=None,
+        ),
+        "file.txt": FileMetadata(
+            relative_path="file.txt",
+            exists_left=False,
+            exists_right=True,
+            mtime_left=None,
+            mtime_right=120.0,  # newer on right
+            size_left=None,
+            size_right=10,
+        ),
+    }
+
+    engine = SyncEngine(config, previous_state, current_state)
+    jobs = engine.generate_sync_jobs()
+
+    conflict_jobs = [j for j in jobs if j.action == SyncAction.CASE_CONFLICT]
+    assert len(conflict_jobs) == 1
+    assert conflict_jobs[0].file_path in ["FILE.txt", "file.txt"]
+
+
+def test_multiple_case_conflicts_in_one_run(config):
+    """Ensure multiple independent case conflicts produce multiple jobs."""
+    previous_state = {
+        "a.txt": FileMetadata(
+            relative_path="a.txt",
+            exists_left=True,
+            exists_right=True,
+            mtime_left=100.0,
+            mtime_right=100.0,
+            size_left=5,
+            size_right=5,
+        ),
+        "b.txt": FileMetadata(
+            relative_path="b.txt",
+            exists_left=True,
+            exists_right=True,
+            mtime_left=100.0,
+            mtime_right=100.0,
+            size_left=5,
+            size_right=5,
+        ),
+    }
+
+    current_state = {
+        "A.txt": FileMetadata(
+            relative_path="A.txt",
+            exists_left=True,
+            exists_right=False,
+            mtime_left=110.0,
+            mtime_right=None,
+            size_left=5,
+            size_right=None,
+        ),
+        "a.txt": FileMetadata(
+            relative_path="a.txt",
+            exists_left=False,
+            exists_right=True,
+            mtime_left=None,
+            mtime_right=110.0,
+            size_left=None,
+            size_right=5,
+        ),
+        "B.txt": FileMetadata(
+            relative_path="B.txt",
+            exists_left=True,
+            exists_right=False,
+            mtime_left=120.0,
+            mtime_right=None,
+            size_left=5,
+            size_right=None,
+        ),
+        "b.txt": FileMetadata(
+            relative_path="b.txt",
+            exists_left=False,
+            exists_right=True,
+            mtime_left=None,
+            mtime_right=120.0,
+            size_left=None,
+            size_right=5,
+        ),
+    }
+
+    engine = SyncEngine(config, previous_state, current_state)
+    jobs = engine.generate_sync_jobs()
+
+    conflict_jobs = [j for j in jobs if j.action == SyncAction.CASE_CONFLICT]
+    assert len(conflict_jobs) == 2
