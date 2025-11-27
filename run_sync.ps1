@@ -31,6 +31,19 @@ if (!(Test-Path "venv")) {
     Write-Host "[OK] Virtual environment created"
 }
 
+# Check if pCloud is running
+Write-Host "Checking pCloud status..."
+$pCloudRunning = Get-Process -Name "pCloud" -ErrorAction SilentlyContinue
+if (-not $pCloudRunning) {
+    Write-Host "[ERROR] pCloud is not running!" -ForegroundColor Red
+    Write-Host "Please start pCloud.exe before running this sync script." -ForegroundColor Yellow
+    Write-Host "The P:\ drive must be available for sync to work." -ForegroundColor Yellow
+    Write-Host ""
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+Write-Host "[OK] pCloud is running"
+
 # Activate venv
 Write-Host "Activating virtual environment..."
 & ".\venv\Scripts\Activate.ps1"
