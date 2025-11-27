@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from remote_office_sync.config_loader import ConfigError, load_config, load_config_from_env
+from remote_office_sync.dry_run_formatter import DryRunFormatter
 from remote_office_sync.email_notifications import (
     ConflictAlert,
     EmailConfig,
@@ -134,6 +135,14 @@ class SyncRunner:
         logger.info("Generating sync jobs")
         sync_engine = SyncEngine(self.config, previous_state, current_state, self.mtime_tolerance)
         jobs = sync_engine.generate_sync_jobs()
+
+        # Check for dry run mode
+        if self.config.dry_run:
+            logger.info("DRY RUN MODE: Showing preview without making changes")
+            formatter = DryRunFormatter(left_name="LEFT", right_name="RIGHT")
+            output = formatter.format_dry_run_output(jobs)
+            print("\n" + output + "\n")
+            return False  # No conflicts in dry run
 
         # Execute sync jobs
         logger.info(f"Executing {len(jobs)} sync jobs")
@@ -457,6 +466,11 @@ def main() -> int:
         action="store_true",
         help="Load config from SYNC_CONFIG environment variable",
     )
+    parser.add_argument(
+        "--no-dry-run",
+        action="store_true",
+        help="Disable dry run mode and perform actual file synchronization",
+    )
 
     args = parser.parse_args()
 
@@ -514,6 +528,11 @@ def main() -> int:
                     "or place config.yaml in current directory"
                 )
                 return 1
+
+        # Override dry_run if --no-dry-run flag is provided
+        if args.no_dry_run:
+            logger.info("--no-dry-run flag provided: disabling dry run mode")
+            runner.config._config["dry_run"] = False
 
         # Run sync
         success = runner.run()

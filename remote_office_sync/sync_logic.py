@@ -649,9 +649,9 @@ class SyncEngine:
                 # Deleted on right, unchanged or changed on left
                 if prev_metadata.mtime_left == curr_metadata.mtime_left:
                     # Unchanged on left, deleted on right → follow right's deletion
-                    if (
-                        self.config.soft_delete_enabled
-                        and (prev_metadata.size_right or 0)
+                    if self.config.soft_delete_enabled and (
+                        self.config.soft_delete_max_size_bytes is None
+                        or (prev_metadata.size_right or 0)
                         <= self.config.soft_delete_max_size_bytes
                     ):
                         jobs.append(
@@ -694,9 +694,9 @@ class SyncEngine:
                 # Deleted on left, unchanged or changed on right
                 if prev_metadata.mtime_right == curr_metadata.mtime_right:
                     # Unchanged on right, deleted on left → follow left's deletion
-                    if (
-                        self.config.soft_delete_enabled
-                        and (prev_metadata.size_left or 0) <= self.config.soft_delete_max_size_bytes
+                    if self.config.soft_delete_enabled and (
+                        self.config.soft_delete_max_size_bytes is None
+                        or (prev_metadata.size_left or 0) <= self.config.soft_delete_max_size_bytes
                     ):
                         jobs.append(
                             SyncJob(
