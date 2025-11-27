@@ -76,8 +76,9 @@ if (!(Test-Path "config.yaml")) {
 Write-Host ""
 Write-Host "Starting Remote Office Sync..." -ForegroundColor Green
 Write-Host ""
-# Pass through any command-line arguments (e.g., --no-dry-run)
-python -m remote_office_sync.main --config config.yaml $args
+# Pass through arguments except --no-pcloud (which is script-level only)
+$pythonArgs = $args | Where-Object { $_ -ne "--no-pcloud" }
+python -m remote_office_sync.main --config config.yaml $pythonArgs
 
 # Show log
 if (Test-Path "sync.log") {

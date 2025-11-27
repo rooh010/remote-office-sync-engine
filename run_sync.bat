@@ -60,17 +60,29 @@ echo.
 echo Starting Remote Office Sync...
 echo.
 
-REM Check for --no-dry-run parameter
-if "%1"=="--no-dry-run" (
-    echo Running with ACTUAL FILE SYNCHRONIZATION ^(dry run disabled^)
-    echo.
-    python -m remote_office_sync.main --config config.yaml --no-dry-run
-) else (
+REM Build argument list for Python, filtering out --no-pcloud
+set PYTHON_ARGS=
+:build_args
+if "%1"=="" goto run_python
+if not "%1"=="--no-pcloud" (
+    set PYTHON_ARGS=%PYTHON_ARGS% %1
+)
+shift
+goto build_args
+
+:run_python
+REM Check if --no-dry-run is in the arguments
+echo %PYTHON_ARGS% | findstr /C:"--no-dry-run" >nul
+if errorlevel 1 (
     echo Running in DRY RUN mode ^(no changes will be made^)
     echo To perform actual sync, run: run_sync.bat --no-dry-run
     echo.
-    python -m remote_office_sync.main --config config.yaml
+) else (
+    echo Running with ACTUAL FILE SYNCHRONIZATION ^(dry run disabled^)
+    echo.
 )
+
+python -m remote_office_sync.main --config config.yaml%PYTHON_ARGS%
 
 REM Show log file location
 if exist sync.log (
