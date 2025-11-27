@@ -424,28 +424,29 @@ class SyncRunner:
                 paths_by_lower[lower] = []
             paths_by_lower[lower].append(path)
 
-        # Remove variant entries (keep only one path per logical file)
-        for lower, paths in paths_by_lower.items():
-            if len(paths) > 1:
-                # Multiple case variants exist - keep the one that exists on both sides
-                # or the main one, and remove the variant
-                main_entry = None
-                variant_entries = []
-
-                for path in paths:
-                    meta = current_state[path]
-                    if meta.exists_left and meta.exists_right:
-                        main_entry = path
-                    else:
-                        variant_entries.append(path)
-
-                # Remove variant entries from state
-                for variant in variant_entries:
-                    del current_state[variant]
-                    logger.debug(
-                        f"Removed case variant from state: {variant} "
-                        f"(kept main entry: {main_entry})"
-                    )
+        # DON'T remove variant entries - we need to preserve actual case on both sides
+        # for proper case change detection in future syncs
+        # for lower, paths in paths_by_lower.items():
+        #     if len(paths) > 1:
+        #         # Multiple case variants exist - keep the one that exists on both sides
+        #         # or the main one, and remove the variant
+        #         main_entry = None
+        #         variant_entries = []
+        #
+        #         for path in paths:
+        #             meta = current_state[path]
+        #             if meta.exists_left and meta.exists_right:
+        #                 main_entry = path
+        #             else:
+        #                 variant_entries.append(path)
+        #
+        #         # Remove variant entries from state
+        #         for variant in variant_entries:
+        #             del current_state[variant]
+        #             logger.debug(
+        #                 f"Removed case variant from state: {variant} "
+        #                 f"(kept main entry: {main_entry})"
+        #             )
 
 
 def main() -> int:
