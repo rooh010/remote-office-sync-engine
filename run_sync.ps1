@@ -1,6 +1,9 @@
 # Remote Office Sync - PowerShell script
 # Run with: powershell -ExecutionPolicy Bypass -File run_sync.ps1
 
+# Change to script directory to ensure paths work correctly
+Set-Location $PSScriptRoot
+
 Write-Host "Remote Office Sync Engine" -ForegroundColor Green
 Write-Host "=========================" -ForegroundColor Green
 Write-Host ""
