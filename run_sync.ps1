@@ -8,9 +8,9 @@ Write-Host ""
 # Check Python installation
 try {
     $pythonVersion = python --version 2>&1
-    Write-Host "✓ Python found: $pythonVersion"
+    Write-Host "[OK] Python found: $pythonVersion"
 } catch {
-    Write-Host "✗ Error: Python not found. Install Python 3.11+ and add to PATH" -ForegroundColor Red
+    Write-Host "[ERROR] Python not found. Install Python 3.11+ and add to PATH" -ForegroundColor Red
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -20,11 +20,11 @@ if (!(Test-Path "venv")) {
     Write-Host "Creating virtual environment..."
     python -m venv venv
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "✗ Error: Failed to create virtual environment" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to create virtual environment" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
-    Write-Host "✓ Virtual environment created"
+    Write-Host "[OK] Virtual environment created"
 }
 
 # Activate venv
@@ -58,7 +58,7 @@ python -m remote_office_sync.main --config config.yaml
 # Show log
 if (Test-Path "sync.log") {
     Write-Host ""
-    Write-Host "✓ Sync complete! Check sync.log for details." -ForegroundColor Green
+    Write-Host "[OK] Sync complete! Check sync.log for details." -ForegroundColor Green
 }
 
 Read-Host "Press Enter to exit"
