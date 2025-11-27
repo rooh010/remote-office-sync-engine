@@ -163,120 +163,48 @@ class SyncEngine:
             logger.debug(f"Applying sync rules for {file_path} (not in processed)")
             jobs.extend(self._apply_sync_rules(file_path, prev_metadata, curr_metadata))
 
-        # Handle deleted files and directories (existed in previous state)
-        # Check against actual filesystem to detect deletions that might be missed
-        # due to case-insensitive merging in the scanner
+        # Handle deleted files and directories (existed in previous state but not current)
         for file_path, prev_metadata in self.previous_state.items():
-            if file_path in processed:
+            if file_path in processed or file_path in self.current_state:
                 continue
-
-            # Check actual filesystem existence with case-sensitive path
-            left_path = Path(self.config.left_root) / file_path
-            right_path = Path(self.config.right_root) / file_path
-
-            left_exists_fs = left_path.exists()
-            right_exists_fs = right_path.exists()
 
             # Check if this was a directory
             if prev_metadata.is_directory():
-                # Only handle if actually deleted from filesystem
-                if not left_exists_fs and not right_exists_fs:
-                    # Directory was deleted - remove from other side
-                    if prev_metadata.exists_left and not prev_metadata.exists_right:
-                        # Was only on left, now gone -> delete from left
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_DIR_LEFT,
-                                file_path=file_path,
-                                details="Empty directory deleted",
-                            )
+                # Directory was deleted - remove from other side
+                if prev_metadata.exists_left and not prev_metadata.exists_right:
+                    # Was only on left, now gone -> delete from left
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_LEFT,
+                            file_path=file_path,
+                            details="Empty directory deleted",
                         )
-                    elif prev_metadata.exists_right and not prev_metadata.exists_left:
-                        # Was only on right, now gone -> delete from right
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_DIR_RIGHT,
-                                file_path=file_path,
-                                details="Empty directory deleted",
-                            )
+                    )
+                elif prev_metadata.exists_right and not prev_metadata.exists_left:
+                    # Was only on right, now gone -> delete from right
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_RIGHT,
+                            file_path=file_path,
+                            details="Empty directory deleted",
                         )
-                    elif prev_metadata.exists_left and prev_metadata.exists_right:
-                        # Was on both sides, now gone -> delete from both
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_DIR_LEFT,
-                                file_path=file_path,
-                                details="Empty directory deleted from both sides",
-                            )
+                    )
+                elif prev_metadata.exists_left and prev_metadata.exists_right:
+                    # Was on both sides, now gone -> delete from both
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_LEFT,
+                            file_path=file_path,
+                            details="Empty directory deleted from both sides",
                         )
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_DIR_RIGHT,
-                                file_path=file_path,
-                                details="Empty directory deleted from both sides",
-                            )
+                    )
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.DELETE_DIR_RIGHT,
+                            file_path=file_path,
+                            details="Empty directory deleted from both sides",
                         )
-            else:
-                # Regular file - check for deletions
-                # Detect deletions by comparing previous state with actual filesystem
-                left_deleted = prev_metadata.exists_left and not (left_exists_fs and left_path.is_file())
-                right_deleted = prev_metadata.exists_right and not (right_exists_fs and right_path.is_file())
-
-                # Skip if file is in current_state and hasn't been deleted
-                # This avoids double-processing files handled by _apply_sync_rules
-                if file_path in self.current_state and not (left_deleted or right_deleted):
-                    continue
-
-                if left_deleted and right_deleted:
-                    # Deleted from both sides - no action needed
-                    logger.debug(f"File {file_path} deleted from both sides")
-                    continue
-
-                elif left_deleted and not right_deleted:
-                    # Deleted from left only
-                    # Sync the deletion to right
-                    if self.config.soft_delete_enabled and (
-                        self.config.soft_delete_max_size_bytes is None
-                        or (prev_metadata.size_right or 0) <= self.config.soft_delete_max_size_bytes
-                    ):
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.SOFT_DELETE_RIGHT,
-                                file_path=file_path,
-                                details="Deleted on left (case-specific deletion)",
-                            )
-                        )
-                    else:
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_RIGHT,
-                                file_path=file_path,
-                                details="Deleted on left (case-specific deletion)",
-                            )
-                        )
-
-                elif right_deleted and not left_deleted:
-                    # Deleted from right only
-                    # Sync the deletion to left
-                    if self.config.soft_delete_enabled and (
-                        self.config.soft_delete_max_size_bytes is None
-                        or (prev_metadata.size_left or 0) <= self.config.soft_delete_max_size_bytes
-                    ):
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.SOFT_DELETE_LEFT,
-                                file_path=file_path,
-                                details="Deleted on right (case-specific deletion)",
-                            )
-                        )
-                    else:
-                        jobs.append(
-                            SyncJob(
-                                action=SyncAction.DELETE_LEFT,
-                                file_path=file_path,
-                                details="Deleted on right (case-specific deletion)",
-                            )
-                        )
+                    )
 
         logger.info(f"Generated {len(jobs)} sync jobs")
         for job in jobs:
