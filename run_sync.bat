@@ -78,7 +78,18 @@ REM Run sync
 echo.
 echo Starting Remote Office Sync...
 echo.
-python -m remote_office_sync.main --config config.yaml
+
+REM Check for --no-dry-run parameter
+if "%1"=="--no-dry-run" (
+    echo Running with ACTUAL FILE SYNCHRONIZATION ^(dry run disabled^)
+    echo.
+    python -m remote_office_sync.main --config config.yaml --no-dry-run
+) else (
+    echo Running in DRY RUN mode ^(no changes will be made^)
+    echo To perform actual sync, run: run_sync.bat --no-dry-run
+    echo.
+    python -m remote_office_sync.main --config config.yaml
+)
 
 REM Show log file location
 if exist sync.log (

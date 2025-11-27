@@ -67,14 +67,45 @@ A Python-based bidirectional file synchronization tool for syncing between local
 
 ### Run Sync
 
+**Windows Command Prompt (cmd.exe):**
+```cmd
+REM Dry run mode - preview changes only, no actual modifications
+run_sync.bat
+
+REM Perform actual synchronization
+run_sync.bat --no-dry-run
+```
+
+**Windows PowerShell:**
+```powershell
+# Dry run mode - preview changes only, no actual modifications
+.\run_sync.bat
+
+# Perform actual synchronization
+.\run_sync.bat --no-dry-run
+```
+
+**Python Direct (all platforms):**
 ```bash
-# Using config.yaml in current directory
+# Dry run mode (uses config.yaml dry_run setting)
 python -m remote_office_sync.main --config config.yaml
 
-# Or using environment variable
+# Override config and perform actual synchronization
+python -m remote_office_sync.main --config config.yaml --no-dry-run
+
+# Using environment variable (Windows cmd)
 set SYNC_CONFIG=C:\path\to\config.yaml
-python -m remote_office_sync.main --use-env
+python -m remote_office_sync.main --use-env --no-dry-run
+
+# Using environment variable (PowerShell)
+$env:SYNC_CONFIG = "C:\path\to\config.yaml"
+python -m remote_office_sync.main --use-env --no-dry-run
 ```
+
+**Command-line Arguments:**
+- `--config <path>` - Path to config.yaml file
+- `--use-env` - Load config path from SYNC_CONFIG environment variable
+- `--no-dry-run` - Override config and perform actual synchronization (bypasses dry_run: true in config)
 
 ### Run Tests
 
@@ -233,7 +264,9 @@ END DRY RUN - To perform these changes, set dry_run: false in config
 ================================================================================
 ```
 
-To perform actual synchronization, set `dry_run: false` in your config.yaml.
+**To perform actual synchronization**, you have two options:
+1. **Command-line override**: `run_sync.bat --no-dry-run` (keeps config safe)
+2. **Config file**: Set `dry_run: false` in your config.yaml (permanent change)
 
 ## Soft Delete
 

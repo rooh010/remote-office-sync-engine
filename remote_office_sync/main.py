@@ -466,6 +466,11 @@ def main() -> int:
         action="store_true",
         help="Load config from SYNC_CONFIG environment variable",
     )
+    parser.add_argument(
+        "--no-dry-run",
+        action="store_true",
+        help="Disable dry run mode and perform actual file synchronization",
+    )
 
     args = parser.parse_args()
 
@@ -523,6 +528,11 @@ def main() -> int:
                     "or place config.yaml in current directory"
                 )
                 return 1
+
+        # Override dry_run if --no-dry-run flag is provided
+        if args.no_dry_run:
+            logger.info("--no-dry-run flag provided: disabling dry run mode")
+            runner.config._config["dry_run"] = False
 
         # Run sync
         success = runner.run()
