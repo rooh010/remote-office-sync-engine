@@ -60,8 +60,9 @@ if (!(Test-Path "config.yaml")) {
     Copy-Item "config.example.yaml" "config.yaml"
     Write-Host ""
     Write-Host "IMPORTANT: Edit config.yaml and set your paths:" -ForegroundColor Yellow
-    Write-Host "  left_root: C:\your\local\path" -ForegroundColor Cyan
-    Write-Host "  right_root: P:\your\network\path" -ForegroundColor Cyan
+    Write-Host "  Use FORWARD SLASHES, not backslashes!" -ForegroundColor Red
+    Write-Host "  left_root: C:/your/local/path" -ForegroundColor Cyan
+    Write-Host "  right_root: P:/your/network/path" -ForegroundColor Cyan
     Write-Host ""
     Read-Host "Press Enter after editing config.yaml"
 }
