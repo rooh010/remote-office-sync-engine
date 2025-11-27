@@ -114,6 +114,48 @@ class TestConflictDetector:
         # No conflict since content is identical
         assert len(conflicts) == 0
 
+    def test_same_size_mtime_but_different_bytes_conflicts(self, tmp_path):
+        """Files with same size/mtime but different content should conflict."""
+        left_root = tmp_path / "left"
+        right_root = tmp_path / "right"
+        left_root.mkdir()
+        right_root.mkdir()
+
+        (left_root / "file.txt").write_text("left-version")
+        (right_root / "file.txt").write_text("right-versn1")  # same length 12
+
+        # Align mtimes to be identical
+        ts = 1_700_000_000
+        for p in (left_root / "file.txt", right_root / "file.txt"):
+            import os
+
+            os.utime(p, (ts, ts))
+
+        previous = {}
+        current = {
+            "file.txt": FileMetadata(
+                relative_path="file.txt",
+                exists_left=True,
+                exists_right=True,
+                mtime_left=float(ts),
+                mtime_right=float(ts),
+                size_left=(left_root / "file.txt").stat().st_size,
+                size_right=(right_root / "file.txt").stat().st_size,
+            ),
+        }
+
+        detector = ConflictDetector(
+            previous,
+            current,
+            mtime_tolerance=2.0,
+            left_root=str(left_root),
+            right_root=str(right_root),
+        )
+        conflicts = detector.detect_conflicts()
+
+        assert len(conflicts) == 1
+        assert conflicts["file.txt"][0] == ConflictType.NEW_NEW
+
     def test_was_modified_both_sides(self):
         """Test detecting modification on both sides."""
         previous = {

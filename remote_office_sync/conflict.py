@@ -1,10 +1,12 @@
 """Conflict detection and resolution."""
 
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Tuple
 
 from remote_office_sync.logging_setup import get_logger
 from remote_office_sync.scanner import FileMetadata
+import hashlib
 
 logger = get_logger()
 
@@ -33,6 +35,8 @@ class ConflictDetector:
         previous_state: dict[str, FileMetadata],
         current_state: dict[str, FileMetadata],
         mtime_tolerance: float = 2.0,
+        left_root: str | None = None,
+        right_root: str | None = None,
     ):
         """Initialize conflict detector.
 
@@ -40,10 +44,14 @@ class ConflictDetector:
             previous_state: File state from last sync
             current_state: Current file state
             mtime_tolerance: Tolerance in seconds for mtime comparison (default 2.0)
+            left_root: Root path for left side (optional, enables content hashing)
+            right_root: Root path for right side (optional, enables content hashing)
         """
         self.previous_state = previous_state
         self.current_state = current_state
         self.mtime_tolerance = mtime_tolerance
+        self.left_root = Path(left_root) if left_root else None
+        self.right_root = Path(right_root) if right_root else None
 
     def detect_conflicts(self) -> dict[str, Tuple[ConflictType, FileMetadata, FileMetadata]]:
         """Detect all conflicts between current and previous state.
@@ -54,6 +62,10 @@ class ConflictDetector:
         conflicts = {}
 
         for path, curr_metadata in self.current_state.items():
+            # Skip directories
+            if curr_metadata.is_directory():
+                continue
+
             prev_metadata = self.previous_state.get(path)
 
             if prev_metadata is None:
@@ -70,8 +82,18 @@ class ConflictDetector:
                         conflicts[path] = (ConflictType.NEW_NEW, None, curr_metadata)
                 continue
 
+            # Track which sides show a timestamp bump
+            left_changed = False
+            right_changed = False
+
+            if curr_metadata.exists_left and prev_metadata.mtime_left:
+                left_changed = (curr_metadata.mtime_left or 0) > prev_metadata.mtime_left
+
+            if curr_metadata.exists_right and prev_metadata.mtime_right:
+                right_changed = (curr_metadata.mtime_right or 0) > prev_metadata.mtime_right
+
             # Check for modify-modify conflict
-            if self._was_modified_both_sides(path, prev_metadata, curr_metadata):
+            if left_changed and right_changed:
                 if not self._is_same_content(curr_metadata):
                     logger.debug(
                         f"MODIFY_MODIFY conflict for {path}: "
@@ -85,6 +107,20 @@ class ConflictDetector:
             # Check for metadata conflicts
             if self._has_metadata_conflict(path, prev_metadata, curr_metadata):
                 conflicts[path] = (ConflictType.METADATA_CONFLICT, prev_metadata, curr_metadata)
+
+            # Catch equal-mtime/size-but-different-bytes scenarios
+            if (
+                path not in conflicts
+                and curr_metadata.exists_left
+                and curr_metadata.exists_right
+                and not left_changed
+                and not right_changed
+                and not self._is_same_content(curr_metadata)
+            ):
+                logger.debug(
+                    f"Content divergence detected for {path} with stable mtimes/sizes; treating as modify-modify"
+                )
+                conflicts[path] = (ConflictType.MODIFY_MODIFY, prev_metadata, curr_metadata)
 
         logger.info(f"Detected {len(conflicts)} conflicts")
         return conflicts
@@ -125,13 +161,45 @@ class ConflictDetector:
         if not metadata.exists_left or not metadata.exists_right:
             return False
 
-        # Simple heuristic: same size and mtime within tolerance
-        # (network drives may not preserve sub-second precision)
+        # First pass: same size and mtime within tolerance (cheap)
         same_size = metadata.size_left == metadata.size_right
         mtime_diff = abs((metadata.mtime_left or 0) - (metadata.mtime_right or 0))
         same_mtime = mtime_diff < self.mtime_tolerance
 
-        return same_size and same_mtime
+        if not (same_size and same_mtime):
+            return False
+
+        # If we don't have roots, fall back to heuristic only
+        if not self.left_root or not self.right_root:
+            return True
+
+        # Deep check: hash content to catch equal-size/equal-mtime divergences
+        left_path = self.left_root / metadata.relative_path
+        right_path = self.right_root / metadata.relative_path
+
+        left_hash = self._hash_file(left_path)
+        right_hash = self._hash_file(right_path)
+
+        # If hashing fails, fall back to heuristic (assume same)
+        if left_hash is None or right_hash is None:
+            return True
+
+        return left_hash == right_hash
+
+    def _hash_file(self, path: Path) -> Optional[str]:
+        """Return SHA256 hash of file contents, or None on error."""
+        try:
+            h = hashlib.sha256()
+            with path.open("rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+        except FileNotFoundError:
+            logger.debug(f"Hash skipped, file missing: {path}")
+            return None
+        except Exception as exc:
+            logger.warning(f"Hash failed for {path}: {exc}")
+            return None
 
     def _has_metadata_conflict(self, path: str, prev: FileMetadata, curr: FileMetadata) -> bool:
         """Check if there's a metadata conflict (size mismatch, etc).

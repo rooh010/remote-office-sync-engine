@@ -68,7 +68,13 @@ class SyncEngine:
         self.previous_state = previous_state
         self.current_state = current_state
         self.mtime_tolerance = mtime_tolerance
-        self.conflict_detector = ConflictDetector(previous_state, current_state, mtime_tolerance)
+        self.conflict_detector = ConflictDetector(
+            previous_state,
+            current_state,
+            mtime_tolerance,
+            left_root=config.left_root,
+            right_root=config.right_root,
+        )
         # Cache bytes for case-variant paths so we can preserve older content even if overwritten later
         self.case_snapshot: Dict[str, Optional[bytes]] = {}
 
