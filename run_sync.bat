@@ -13,6 +13,19 @@ if not exist venv (
     )
 )
 
+REM Check if pCloud is running
+echo Checking pCloud status...
+tasklist /FI "IMAGENAME eq pCloud.exe" 2>NUL | find /I /N "pCloud.exe">NUL
+if errorlevel 1 (
+    echo [ERROR] pCloud is not running!
+    echo Please start pCloud.exe before running this sync script.
+    echo The P:\ drive must be available for sync to work.
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] pCloud is running
+
 REM Activate venv
 call venv\Scripts\activate.bat
 
