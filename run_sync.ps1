@@ -55,16 +55,17 @@ pip install -q -r requirements.txt
 # Check config file
 if (!(Test-Path "config.yaml")) {
     Write-Host ""
-    Write-Host "WARNING: config.yaml not found!" -ForegroundColor Yellow
-    Write-Host "Creating config.yaml from config.example.yaml..."
-    Copy-Item "config.example.yaml" "config.yaml"
+    Write-Host "[ERROR] config.yaml not found!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "IMPORTANT: Edit config.yaml and set your paths:" -ForegroundColor Yellow
-    Write-Host "  Use FORWARD SLASHES, not backslashes!" -ForegroundColor Red
-    Write-Host "  left_root: C:/your/local/path" -ForegroundColor Cyan
-    Write-Host "  right_root: P:/your/network/path" -ForegroundColor Cyan
+    Write-Host "To create your config file:" -ForegroundColor Yellow
+    Write-Host "  1. Copy the template: copy config.template.yaml config.yaml"
+    Write-Host "  2. Edit config.yaml and set your paths"
+    Write-Host "  3. Use FORWARD SLASHES: 'C:/your/path/' not 'C:\your\path\'" -ForegroundColor Red
     Write-Host ""
-    Read-Host "Press Enter after editing config.yaml"
+    Write-Host "See README.md for complete setup instructions."
+    Write-Host ""
+    Read-Host "Press Enter to exit"
+    exit 1
 }
 
 # Run sync

@@ -35,56 +35,17 @@ pip install -q -r requirements.txt
 REM Check if config.yaml exists
 if not exist config.yaml (
     echo.
-    echo WARNING: config.yaml not found!
-    echo Creating config.yaml...
-    (
-        echo # Remote Office Sync Configuration
-        echo # Edit paths below with your actual folders
-        echo.
-        echo left_root: "C:/Users/Andy/Documents"
-        echo right_root: "C:/Users/Andy/OneDrive"
-        echo.
-        echo soft_delete:
-        echo   enabled: true
-        echo   max_size_mb: 20
-        echo.
-        echo conflict_policy:
-        echo   modify_modify: clash
-        echo   new_new: clash
-        echo   metadata_conflict: clash
-        echo.
-        echo ignore:
-        echo   extensions:
-        echo     - .tmp
-        echo     - .bak
-        echo     - .log
-        echo   filenames_prefix:
-        echo     - .
-        echo     - "~"
-        echo   filenames_exact:
-        echo     - thumbs.db
-        echo     - desktop.ini
-        echo     - System Volume Information
-        echo.
-        echo email:
-        echo   enabled: false
-        echo.
-        echo logging:
-        echo   level: INFO
-        echo   file_path: "C:/logs/sync.log"
-    ) > config.yaml
+    echo [ERROR] config.yaml not found!
     echo.
-    echo ✓ Created config.yaml
+    echo To create your config file:
+    echo   1. Copy the template: copy config.template.yaml config.yaml
+    echo   2. Edit config.yaml and set your paths
+    echo   3. Use FORWARD SLASHES: "C:/your/path/" not "C:\your\path\"
     echo.
-    echo IMPORTANT: Edit config.yaml and set your actual paths!
+    echo See README.md for complete setup instructions.
     echo.
-    echo Opening config.yaml for editing...
-    timeout /t 2 /nobreak
-    notepad config.yaml
-    echo.
-    echo After editing, run this script again.
     pause
-    exit /b 0
+    exit /b 1
 )
 
 REM Run sync
