@@ -562,3 +562,19 @@ Gentle mode during working hours.
 ### Integration with backup system:
 
 Use Backblaze APIs for additional safety or faster restore.
+
+### Windows file attributes preservation:
+
+Preserve Windows-specific file attributes during sync operations:
+
+Hidden attribute.
+
+System attribute.
+
+Read-only attribute.
+
+Archive attribute.
+
+Currently, shutil.copy2() preserves modification time and permissions but does not preserve Windows file attributes. This could result in hidden files losing their hidden status, read-only files becoming writable, etc.
+
+Implementation would require using Windows API (via win32file or ctypes) to read and set file attributes before/after copy operations.
