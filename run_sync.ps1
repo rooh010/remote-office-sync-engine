@@ -1,5 +1,6 @@
 # Remote Office Sync - PowerShell script
 # Run with: powershell -ExecutionPolicy Bypass -File run_sync.ps1
+# Pass arguments: powershell -ExecutionPolicy Bypass -File run_sync.ps1 --no-dry-run
 
 # Change to script directory to ensure paths work correctly
 Set-Location $PSScriptRoot
@@ -56,7 +57,8 @@ if (!(Test-Path "config.yaml")) {
 Write-Host ""
 Write-Host "Starting Remote Office Sync..." -ForegroundColor Green
 Write-Host ""
-python -m remote_office_sync.main --config config.yaml
+# Pass through any command-line arguments (e.g., --no-dry-run)
+python -m remote_office_sync.main --config config.yaml $args
 
 # Show log
 if (Test-Path "sync.log") {
