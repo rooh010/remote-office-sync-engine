@@ -383,4 +383,4 @@ MIT License
 
 ## Support
 
-For issues, questions, or contributions, visit the GitHub repository.
+No support provided.
