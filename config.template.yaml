@@ -75,3 +75,8 @@ logging:
     rotation_enabled: true
     max_size_mb: 10
     backup_count: 5
+
+# pCloud check (for P:/ drive sync)
+pcloud_check:
+    enabled: true  # Check if pCloud.exe is running before sync (prevents errors if P:/ not mounted)
+                   # Set to false to skip check, or use --no-pcloud command-line flag

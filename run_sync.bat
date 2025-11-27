@@ -13,18 +13,25 @@ if not exist venv (
     )
 )
 
-REM Check if pCloud is running
-echo Checking pCloud status...
-tasklist /FI "IMAGENAME eq pCloud.exe" 2>NUL | find /I /N "pCloud.exe">NUL
+REM Check if pCloud is running (unless --no-pcloud flag is passed)
+REM Use echo to check all arguments without consuming them
+echo %* | findstr /C:"--no-pcloud" >nul
 if errorlevel 1 (
-    echo [ERROR] pCloud is not running!
-    echo Please start pCloud.exe before running this sync script.
-    echo The P:\ drive must be available for sync to work.
-    echo.
-    pause
-    exit /b 1
+    REM --no-pcloud not found, do the check
+    echo Checking pCloud status...
+    tasklist /FI "IMAGENAME eq pCloud.exe" 2>NUL | find /I /N "pCloud.exe">NUL
+    if errorlevel 1 (
+        echo [ERROR] pCloud is not running!
+        echo Please start pCloud.exe before running this sync script.
+        echo The P:\ drive must be available for sync to work.
+        echo.
+        echo To skip this check, use: run_sync.bat --no-pcloud
+        echo.
+        pause
+        exit /b 1
+    )
+    echo [OK] pCloud is running
 )
-echo [OK] pCloud is running
 
 REM Activate venv
 call venv\Scripts\activate.bat

@@ -76,15 +76,27 @@ run_sync.bat
 
 REM Perform actual synchronization
 run_sync.bat --no-dry-run
+
+REM Skip pCloud check (if pCloud runs under different name or for testing)
+run_sync.bat --no-pcloud
+
+REM Combine flags
+run_sync.bat --no-dry-run --no-pcloud
 ```
 
 **Windows PowerShell:**
 ```powershell
 # Dry run mode - preview changes only, no actual modifications
-.\run_sync.bat
+.\run_sync.ps1
 
 # Perform actual synchronization
-.\run_sync.bat --no-dry-run
+.\run_sync.ps1 --no-dry-run
+
+# Skip pCloud check
+.\run_sync.ps1 --no-pcloud
+
+# Combine flags
+.\run_sync.ps1 --no-dry-run --no-pcloud
 ```
 
 **Python Direct (all platforms):**
@@ -102,6 +114,7 @@ python -m remote_office_sync.main --config C:/path/to/custom-config.yaml --no-dr
 **Command-line Arguments:**
 - `--config <path>` - Path to config.yaml file (default: config.yaml)
 - `--no-dry-run` - Override config and perform actual synchronization (bypasses dry_run: true in config)
+- `--no-pcloud` - Skip pCloud running check (script-level only, for BAT/PS1 files)
 - `--use-env` - Load config path from SYNC_CONFIG environment variable (advanced)
 
 ### Run Tests
@@ -149,6 +162,9 @@ logging:
   rotation_enabled: true
   max_size_mb: 10
   backup_count: 5
+
+pcloud_check:
+  enabled: true  # Check if pCloud.exe is running before sync
 ```
 
 **CRITICAL:** Windows paths in YAML **MUST use forward slashes (`/`)**:
@@ -166,6 +182,25 @@ The sync engine includes comprehensive logging with automatic log rotation:
 - **backup_count**: Number of old log files to keep (default: 5)
 
 Log files include the username of the user running the sync process, useful for tracking who made changes in multi-user environments. Set `rotation_enabled: false` to disable rotation and keep all logs in a single file for debugging.
+
+### pCloud Check
+
+The sync scripts automatically verify that pCloud.exe is running before starting the sync. This prevents errors when the P:/ drive is not mounted.
+
+**Configuration:**
+```yaml
+pcloud_check:
+  enabled: true  # Default: true
+```
+
+**To skip the check:**
+- Command-line: `run_sync.bat --no-pcloud` or `run_sync.ps1 --no-pcloud`
+- Config file: Set `enabled: false`
+
+**Use cases for disabling:**
+- pCloud runs under a different process name
+- Using a different cloud drive provider
+- Testing without pCloud mounted
 
 ### Email Notifications (Optional)
 

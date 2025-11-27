@@ -178,6 +178,11 @@ class Config:
         """Get number of backup log files to keep."""
         return self._config.get("logging", {}).get("backup_count", 5)
 
+    @property
+    def pcloud_check_enabled(self) -> bool:
+        """Get whether to check if pCloud is running before sync."""
+        return self._config.get("pcloud_check", {}).get("enabled", True)
+
     def to_dict(self) -> Dict[str, Any]:
         """Return config as dictionary."""
         return self._config.copy()
