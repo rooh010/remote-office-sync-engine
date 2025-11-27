@@ -174,9 +174,25 @@ class Scanner:
         for left_path in left_scan.keys():
             left_lower = left_path.lower()
 
-            # Find matching file on right (case-insensitive)
-            right_actual_path = right_lower_to_actual.get(left_lower)
-            right_exists = right_actual_path is not None
+            # Find matching file on right - prefer exact case match first
+            if left_path in right_scan:
+                # Exact case match exists
+                right_actual_path = left_path
+                right_exists = True
+            else:
+                # Check for case-insensitive match
+                potential_right = right_lower_to_actual.get(left_lower)
+
+                # Only use case-insensitive match if no other left file has exact match with it
+                # This prevents matching left's "test.txt" to right's "Test.txt" when
+                # left also has "Test.txt" that should be the exact match
+                if potential_right and potential_right in left_scan:
+                    # Another left file has exact match with this right file, don't use it
+                    right_actual_path = None
+                    right_exists = False
+                else:
+                    right_actual_path = potential_right
+                    right_exists = potential_right is not None
 
             if right_exists:
                 processed_right.add(right_actual_path)
