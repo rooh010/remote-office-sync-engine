@@ -95,19 +95,14 @@ python -m remote_office_sync.main --config config.yaml
 # Override config and perform actual synchronization
 python -m remote_office_sync.main --config config.yaml --no-dry-run
 
-# Using environment variable (Windows cmd)
-set SYNC_CONFIG=C:\path\to\config.yaml
-python -m remote_office_sync.main --use-env --no-dry-run
-
-# Using environment variable (PowerShell)
-$env:SYNC_CONFIG = "C:\path\to\config.yaml"
-python -m remote_office_sync.main --use-env --no-dry-run
+# Use custom config location
+python -m remote_office_sync.main --config C:/path/to/custom-config.yaml --no-dry-run
 ```
 
 **Command-line Arguments:**
-- `--config <path>` - Path to config.yaml file
-- `--use-env` - Load config path from SYNC_CONFIG environment variable
+- `--config <path>` - Path to config.yaml file (default: config.yaml)
 - `--no-dry-run` - Override config and perform actual synchronization (bypasses dry_run: true in config)
+- `--use-env` - Load config path from SYNC_CONFIG environment variable (advanced)
 
 ### Run Tests
 

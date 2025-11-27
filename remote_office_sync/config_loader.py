@@ -199,7 +199,23 @@ def load_config(config_path: str) -> Config:
     path = Path(config_path)
 
     if not path.exists():
-        raise ConfigError(f"Config file not found: {config_path}")
+        # Check if template exists to provide helpful guidance
+        template_path = Path("config.template.yaml")
+        error_msg = f"\nConfig file not found: {config_path}\n\n"
+        error_msg += "To create your config file:\n"
+
+        if template_path.exists():
+            error_msg += f"1. Copy the template: copy config.template.yaml config.yaml\n"
+        else:
+            error_msg += "1. Download config.template.yaml from the repository\n"
+            error_msg += "2. Copy it to config.yaml\n"
+
+        error_msg += "3. Edit config.yaml and set your paths:\n"
+        error_msg += '   left_root: "C:/your/local/path/"  (use forward slashes!)\n'
+        error_msg += '   right_root: "P:/your/network/path/"\n\n'
+        error_msg += "See README.md for complete setup instructions.\n"
+
+        raise ConfigError(error_msg)
 
     with open(path, "r", encoding="utf-8") as f:
         config_dict = yaml.safe_load(f) or {}
