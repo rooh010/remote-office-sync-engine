@@ -37,8 +37,8 @@ A Python-based bidirectional file synchronization tool for syncing between local
 
 1. **Clone the repository** (or download as ZIP)
    ```bash
-   git clone https://github.com/rooh010/dink-claude-test.git
-   cd dink-claude-test
+   git clone https://github.com/rooh010/remote-office-sync-engine.git
+   cd remote-office-sync-engine
    ```
 
 2. **Create virtual environment**
