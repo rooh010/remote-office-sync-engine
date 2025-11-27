@@ -23,11 +23,9 @@ if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
 REM Check config.yaml setting (if file exists and flag not already set)
 if exist config.yaml (
     if %SKIP_PCLOUD_CHECK%==0 (
-        findstr /R /C:"pcloud_check:" config.yaml >nul 2>&1
-        if not errorlevel 1 (
-            findstr /R /C:"enabled.*:.*false" config.yaml >nul 2>&1
-            if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
-        )
+        REM Use PowerShell for more reliable YAML parsing
+        powershell -NoProfile -Command "& {$c = Get-Content 'config.yaml' -Raw; if ($c -match '(?m)^\s*pcloud_check\s*:[\s\S]*?enabled\s*:\s*false') {exit 0} else {exit 1}}" >nul 2>&1
+        if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
     )
 )
 
