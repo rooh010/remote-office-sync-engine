@@ -651,8 +651,7 @@ class SyncEngine:
                     # Unchanged on left, deleted on right → follow right's deletion
                     if self.config.soft_delete_enabled and (
                         self.config.soft_delete_max_size_bytes is None
-                        or (prev_metadata.size_right or 0)
-                        <= self.config.soft_delete_max_size_bytes
+                        or (prev_metadata.size_right or 0) <= self.config.soft_delete_max_size_bytes
                     ):
                         jobs.append(
                             SyncJob(

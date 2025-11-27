@@ -36,6 +36,15 @@ ignore:
       - .
     filenames_exact:
       - thumbs.db
+    directories:
+      - System Volume Information
+      - $RECYCLE.BIN
+      - .Trash-1000
+      - .deleted
+      - __pycache__
+      - .git
+      - .svn
+      - node_modules
 
 # Email notifications (optional)
 email:

@@ -51,6 +51,7 @@ class SyncRunner:
             ignore_extensions=self.config.ignore_extensions,
             ignore_filenames_prefix=self.config.ignore_filenames_prefix,
             ignore_filenames_exact=self.config.ignore_filenames_exact,
+            ignore_directories=self.config.ignore_directories,
         )
         self.state_db = StateDB("sync_state.db")
         self.file_ops = FileOps(soft_delete_root=".deleted")
@@ -492,6 +493,7 @@ def main() -> int:
                     ignore_extensions=runner.config.ignore_extensions,
                     ignore_filenames_prefix=runner.config.ignore_filenames_prefix,
                     ignore_filenames_exact=runner.config.ignore_filenames_exact,
+                    ignore_directories=runner.config.ignore_directories,
                 )
                 runner.state_db = StateDB("sync_state.db")
                 runner.file_ops = FileOps(soft_delete_root=".deleted")

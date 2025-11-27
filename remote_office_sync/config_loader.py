@@ -148,6 +148,12 @@ class Config:
         return [i for i in (items or []) if i]
 
     @property
+    def ignore_directories(self) -> list:
+        """Get directories to ignore (exact names, case-insensitive on Windows)."""
+        items = self._config.get("ignore", {}).get("directories", [])
+        return [i for i in (items or []) if i]
+
+    @property
     def log_file_path(self) -> str:
         """Get log file path."""
         return self._config.get("logging", {}).get("file_path", "sync.log")

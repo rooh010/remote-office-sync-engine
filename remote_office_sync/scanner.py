@@ -44,6 +44,7 @@ class Scanner:
         ignore_extensions: List[str] | None = None,
         ignore_filenames_prefix: List[str] | None = None,
         ignore_filenames_exact: List[str] | None = None,
+        ignore_directories: List[str] | None = None,
     ):
         """Initialize scanner with ignore rules.
 
@@ -51,10 +52,13 @@ class Scanner:
             ignore_extensions: Extensions to ignore (e.g., ['.tmp', '.bak'])
             ignore_filenames_prefix: Filename prefixes to ignore
             ignore_filenames_exact: Exact filenames to ignore
+            ignore_directories: Directory names to ignore (e.g., ['System Volume Information'])
         """
         self.ignore_extensions = set(f for f in (ignore_extensions or []) if f)
         self.ignore_filenames_prefix = set(f for f in (ignore_filenames_prefix or []) if f)
         self.ignore_filenames_exact = set(f for f in (ignore_filenames_exact or []) if f)
+        # Normalize directory names to lowercase for case-insensitive comparison on Windows
+        self.ignore_directories = set(d.lower() for d in (ignore_directories or []) if d)
 
     def _should_ignore(self, filename: str) -> bool:
         """Check if file should be ignored."""
@@ -73,6 +77,10 @@ class Scanner:
                 return True
 
         return False
+
+    def _should_ignore_directory(self, dir_name: str) -> bool:
+        """Check if directory should be ignored (case-insensitive on Windows)."""
+        return dir_name.lower() in self.ignore_directories
 
     def scan_directory(self, root_path: str) -> Dict[str, tuple[float, int]]:
         """Scan a directory and return file metadata.
@@ -93,35 +101,47 @@ class Scanner:
 
         try:
             for file_path in root.rglob("*"):
+                # Check if any parent directory in the path should be ignored
+                relative_path = file_path.relative_to(root)
+
+                # Normalize path separators to forward slashes early
+                # Preserve original case - Windows supports case changes
+                relative_path_str = str(relative_path).replace("\\", "/")
+
+                should_skip = False
+                for part in relative_path.parts[:-1]:  # Check all directories, not the file itself
+                    if self._should_ignore_directory(part):
+                        logger.debug(f"Skipping path in ignored directory: {relative_path_str}")
+                        should_skip = True
+                        break
+
+                if should_skip:
+                    continue
+
                 if file_path.is_file():
-                    # Normalize path separators to forward slashes
-                    # Preserve original case - Windows supports case changes
-                    relative_path = str(file_path.relative_to(root)).replace("\\", "/")
 
                     filename = file_path.name
 
                     if self._should_ignore(filename):
-                        logger.debug(f"Ignoring file: {relative_path}")
+                        logger.debug(f"Ignoring file: {relative_path_str}")
                         continue
 
                     try:
                         stat_info = file_path.stat()
-                        result[relative_path] = (stat_info.st_mtime, stat_info.st_size)
+                        result[relative_path_str] = (stat_info.st_mtime, stat_info.st_size)
                     except (OSError, IOError) as e:
-                        logger.warning(f"Could not stat file {relative_path}: {e}")
+                        logger.warning(f"Could not stat file {relative_path_str}: {e}")
                 elif file_path.is_dir():
                     # Track empty directories
                     # Check if directory is empty (no files or subdirectories)
                     if not any(file_path.iterdir()):
-                        relative_path = str(file_path.relative_to(root)).replace("\\", "/")
-
                         # Use -1 as sentinel for directory size
                         try:
                             stat_info = file_path.stat()
-                            result[relative_path] = (stat_info.st_mtime, -1)
-                            logger.debug(f"Found empty directory: {relative_path}")
+                            result[relative_path_str] = (stat_info.st_mtime, -1)
+                            logger.debug(f"Found empty directory: {relative_path_str}")
                         except (OSError, IOError) as e:
-                            logger.warning(f"Could not stat directory {relative_path}: {e}")
+                            logger.warning(f"Could not stat directory {relative_path_str}: {e}")
         except (OSError, IOError) as e:
             logger.error(f"Error scanning directory {root_path}: {e}")
 
