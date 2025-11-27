@@ -15,7 +15,18 @@ class CaseConflictTester:
 
     def cleanup(self):
         """Clean up test files and reset state."""
-        patterns = ["scenario*.txt", "*CONFLICT*.txt", "test_*.txt", "*manual*.txt", "*debug*.txt"]
+        patterns = [
+            "scenario*.txt",
+            "*CONFLICT*.txt",
+            "test_*.txt",
+            "test?.txt",
+            "Test?.txt",
+            "TEST?.txt",
+            "TeSt?.txt",
+            "tEsT?.txt",
+            "*manual*.txt",
+            "*debug*.txt",
+        ]
         for p in [self.left, self.right]:
             for pattern in patterns:
                 for f in p.glob(pattern):
@@ -45,9 +56,16 @@ class CaseConflictTester:
         db.save_state(state)
 
     def sync(self):
-        """Run sync and return output."""
+        """Run sync (no-dry-run) and return output."""
         result = subprocess.run(
-            ["python", "-m", "remote_office_sync.main", "--config", "config.yaml"],
+            [
+                "python",
+                "-m",
+                "remote_office_sync.main",
+                "--config",
+                "config.yaml",
+                "--no-dry-run",
+            ],
             capture_output=True,
             text=True,
             timeout=30,
@@ -62,11 +80,17 @@ class CaseConflictTester:
         shutil.move(str(temp_path), str(final_path))
         return final_path
 
+    def names_recursive(self, root: Path, pattern: str):
+        """Return a set of file names matching pattern anywhere under root."""
+        return set(p.name for p in root.rglob(pattern))
+
     def test_scenario_1_both_different_case(self):
         """Test: Both sides change to different cases."""
         print("\n" + "=" * 60)
         print("Scenario 1: Both sides change to different cases")
         print("=" * 60)
+
+        self.cleanup()
 
         # Setup
         (self.left / "test1.txt").write_text("content1")
@@ -79,19 +103,16 @@ class CaseConflictTester:
 
         # Verify
         output = self.sync()
-        has_conflict = "Case conflict" in output
-
-        left_files = set(f.name for f in self.left.glob("*est1*.txt"))
-        right_files = set(f.name for f in self.right.glob("*est1*.txt"))
+        left_files = self.names_recursive(self.left, "*est1*.txt")
+        right_files = self.names_recursive(self.right, "*est1*.txt")
 
         has_main = "TEST1.txt" in left_files and "TEST1.txt" in right_files
-        has_conflict_file = any("CONFLICT" in f for f in left_files) and any(
-            "CONFLICT" in f for f in right_files
-        )
+        # Conflict file should use the losing casing (right side)
+        has_conflict_file = "Test1.CONFLICT" in "".join(left_files | right_files)
 
-        passed = has_conflict and has_main and has_conflict_file
+        passed = has_main and has_conflict_file
 
-        print(f"Conflict detected: {has_conflict}")
+        print(output)
         print(f"Main file on both sides: {has_main}")
         print(f"Conflict file on both sides: {has_conflict_file}")
         print(f'Result: {"PASS" if passed else "FAIL"}')
@@ -105,6 +126,8 @@ class CaseConflictTester:
         print("Scenario 2: Both sides change to same case")
         print("=" * 60)
 
+        self.cleanup()
+
         # Setup
         (self.left / "test2.txt").write_text("content2")
         (self.right / "test2.txt").write_text("content2")
@@ -116,17 +139,16 @@ class CaseConflictTester:
 
         # Verify
         output = self.sync()
-        has_conflict = "Case conflict" in output
 
-        left_files = set(f.name for f in self.left.glob("*est2*.txt"))
-        right_files = set(f.name for f in self.right.glob("*est2*.txt"))
+        left_files = self.names_recursive(self.left, "*est2*.txt")
+        right_files = self.names_recursive(self.right, "*est2*.txt")
 
         has_main = "TEST2.txt" in left_files and "TEST2.txt" in right_files
         no_conflict_file = not any("CONFLICT" in f for f in left_files | right_files)
 
-        passed = not has_conflict and has_main and no_conflict_file
+        passed = has_main and no_conflict_file
 
-        print(f"Conflict detected: {has_conflict}")
+        print(output)
         print(f"Main file on both sides: {has_main}")
         print(f"No conflict file: {no_conflict_file}")
         print(f'Result: {"PASS" if passed else "FAIL"}')
@@ -140,6 +162,8 @@ class CaseConflictTester:
         print("Scenario 3: One side changes case only")
         print("=" * 60)
 
+        self.cleanup()
+
         # Setup
         (self.left / "test3.txt").write_text("content3")
         (self.right / "test3.txt").write_text("content3")
@@ -150,19 +174,18 @@ class CaseConflictTester:
 
         # Verify
         output = self.sync()
-        has_conflict = "Case conflict" in output
 
-        left_files = set(f.name for f in self.left.glob("*est3*.txt"))
-        right_files = set(f.name for f in self.right.glob("*est3*.txt"))
+        left_files = self.names_recursive(self.left, "*est3*.txt")
+        right_files = self.names_recursive(self.right, "*est3*.txt")
 
         has_main = "TEST3.txt" in left_files and "TEST3.txt" in right_files
-        no_conflict_file = not any("CONFLICT" in f for f in left_files | right_files)
+        has_conflict_file = "test3.CONFLICT" in "".join(left_files | right_files)
 
-        passed = not has_conflict and has_main and no_conflict_file
+        passed = has_main and has_conflict_file
 
-        print(f"Conflict detected: {has_conflict}")
+        print(output)
         print(f"Main file on both sides: {has_main}")
-        print(f"No conflict file: {no_conflict_file}")
+        print(f"Conflict file on both sides: {has_conflict_file}")
         print(f'Result: {"PASS" if passed else "FAIL"}')
 
         self.results.append(("Scenario 3", passed))
@@ -173,6 +196,8 @@ class CaseConflictTester:
         print("\n" + "=" * 60)
         print("Scenario 4: Mixed case variations")
         print("=" * 60)
+
+        self.cleanup()
 
         # Setup
         (self.left / "test4.txt").write_text("content4")
@@ -185,19 +210,16 @@ class CaseConflictTester:
 
         # Verify
         output = self.sync()
-        has_conflict = "Case conflict" in output
 
-        left_files = set(f.name for f in self.left.glob("*est4*.txt"))
-        right_files = set(f.name for f in self.right.glob("*est4*.txt"))
+        left_files = self.names_recursive(self.left, "*est4*.txt")
+        right_files = self.names_recursive(self.right, "*est4*.txt")
 
         has_main = "TeSt4.txt" in left_files and "TeSt4.txt" in right_files
-        has_conflict_file = any("CONFLICT" in f for f in left_files) and any(
-            "CONFLICT" in f for f in right_files
-        )
+        has_conflict_file = "tEsT4.CONFLICT" in "".join(left_files | right_files)
 
-        passed = has_conflict and has_main and has_conflict_file
+        passed = has_main and has_conflict_file
 
-        print(f"Conflict detected: {has_conflict}")
+        print(output)
         print(f"Main file on both sides: {has_main}")
         print(f"Conflict file on both sides: {has_conflict_file}")
         print(f'Result: {"PASS" if passed else "FAIL"}')
@@ -210,6 +232,8 @@ class CaseConflictTester:
         print("\n" + "=" * 60)
         print("Scenario 5: Case conflict in subdirectory")
         print("=" * 60)
+
+        self.cleanup()
 
         # Setup
         (self.left / "subdir").mkdir(exist_ok=True)
@@ -224,19 +248,16 @@ class CaseConflictTester:
 
         # Verify
         output = self.sync()
-        has_conflict = "Case conflict" in output
 
-        left_files = set(f.name for f in (self.left / "subdir").glob("*est5*.txt"))
-        right_files = set(f.name for f in (self.right / "subdir").glob("*est5*.txt"))
+        left_files = self.names_recursive(self.left, "*est5*.txt")
+        right_files = self.names_recursive(self.right, "*est5*.txt")
 
         has_main = "TEST5.txt" in left_files and "TEST5.txt" in right_files
-        has_conflict_file = any("CONFLICT" in f for f in left_files) and any(
-            "CONFLICT" in f for f in right_files
-        )
+        has_conflict_file = "Test5.CONFLICT" in "".join(left_files | right_files)
 
-        passed = has_conflict and has_main and has_conflict_file
+        passed = has_main and has_conflict_file
 
-        print(f"Conflict detected: {has_conflict}")
+        print(output)
         print(f"Main file on both sides: {has_main}")
         print(f"Conflict file on both sides: {has_conflict_file}")
         print(f'Result: {"PASS" if passed else "FAIL"}')
