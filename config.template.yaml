@@ -3,9 +3,16 @@
 # config.yaml is gitignored and should not be committed
 
 # Paths to sync
-# IMPORTANT: Use forward slashes (/) NOT backslashes (\) in paths!
-#   ✓ CORRECT: "C:/folder/path"
-#   ✗ WRONG:   "C:\folder\path"  (will cause YAML parsing error)
+# ========================================
+# CRITICAL: Paths MUST use forward slashes (/) NOT backslashes (\)
+# ========================================
+# Backslashes in YAML cause parsing errors like "unknown escape character"
+#
+#   ✅ CORRECT:  left_root: "C:/folder/path"
+#   ❌ WRONG:    left_root: "C:\folder\path"  ← This will FAIL!
+#
+# Forward slashes work perfectly in Windows - they are the REQUIRED format for YAML
+#
 # WARNING: THIS WILL CAUSE A FILE SYNC BETWEEN THE 2 FOLDERS - ENSURE CORRECT FOLDERS
 left_root: "y:/pdrive_local/"
 right_root: "z:/"

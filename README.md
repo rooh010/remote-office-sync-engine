@@ -58,9 +58,11 @@ A Python-based bidirectional file synchronization tool for syncing between local
    ```
    Edit `config.yaml` with your environment-specific paths and settings:
    ```yaml
-   left_root: C:\pdrive_local
-   right_root: P:\
+   left_root: "C:/pdrive_local/"
+   right_root: "P:/"
    ```
+   **IMPORTANT:** Paths MUST use forward slashes (`/`) not backslashes (`\`). YAML will fail to parse backslashes.
+
    **Note:** `config.yaml` is gitignored and should not be committed. Keep `config.template.yaml` updated in the repository with your standard configuration.
 
 ## Usage
@@ -125,9 +127,10 @@ ruff check .
 ### Basic Config
 
 ```yaml
-# Windows paths must use escaped backslashes or forward slashes
-left_root: "C:\\pdrive_local"
-right_root: "P:\\"
+# IMPORTANT: Paths MUST use forward slashes (/) not backslashes (\)
+# Backslashes will cause YAML parsing errors!
+left_root: "C:/pdrive_local/"
+right_root: "P:/"
 
 dry_run: true  # RECOMMENDED: Preview changes without modifying files
 
@@ -153,9 +156,9 @@ logging:
   backup_count: 5
 ```
 
-**Important:** Windows paths in YAML must be quoted and use either:
-- Double backslashes: `"C:\\Users\\Documents"`
-- Forward slashes: `"C:/Users/Documents"`
+**CRITICAL:** Windows paths in YAML **MUST use forward slashes (`/`)**:
+- ✅ **CORRECT**: `"C:/Users/Documents"`
+- ❌ **WRONG**: `"C:\Users\Documents"` (will cause YAML parsing error: "unknown escape character")
 
 ### Logging
 
