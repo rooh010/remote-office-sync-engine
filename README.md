@@ -17,6 +17,7 @@ A Python-based bidirectional file synchronization tool for syncing between local
 
 ## Features
 
+- **Dry Run Mode**: Preview all changes with visual diagrams before making any modifications (enabled by default)
 - **Bidirectional Sync**: Automatically sync files between left and right directories
 - **Conflict Resolution**: Multiple strategies (clash, overwrite newer, notify-only)
 - **Soft Delete**: Safely move deleted files to a `.deleted/` folder before permanent deletion
@@ -96,6 +97,8 @@ ruff check .
 # Windows paths must use escaped backslashes or forward slashes
 left_root: "C:\\pdrive_local"
 right_root: "P:\\"
+
+dry_run: true  # RECOMMENDED: Preview changes without modifying files
 
 soft_delete:
   enabled: true
@@ -186,6 +189,51 @@ Automatically overwrites older version with newer one (no clash file created)
 
 ### notify_only
 Sends email alert but doesn't modify files
+
+## Dry Run Mode
+
+**RECOMMENDED**: Keep dry run mode enabled until you're confident in the sync behavior!
+
+When `dry_run: true` (default), the sync engine will:
+- Scan both directories and analyze what needs to sync
+- Show a detailed preview with visual diagrams
+- Display exactly what would change with arrows showing file movements
+- Make **NO actual changes** to your files
+
+Example dry run output:
+```
+================================================================================
+DRY RUN MODE - NO CHANGES WILL BE MADE
+================================================================================
+
+The following 5 operations would be performed:
+
+Summary by Action:
+--------------------------------------------------------------------------------
+  → Copy LEFT → RIGHT: 2 files
+  ← Copy RIGHT → LEFT: 1 files
+  ⊗ Soft delete from RIGHT: 2 files
+
+Detailed Changes:
+--------------------------------------------------------------------------------
+
+Copy LEFT → RIGHT:
+  [LEFT] documents/report.docx → [RIGHT]
+  [LEFT] images/logo.png → [RIGHT]
+
+Copy RIGHT → LEFT:
+  [LEFT] ← data/spreadsheet.xlsx [RIGHT]
+
+Soft delete from RIGHT:
+  [RIGHT] old_file.txt ⊗ (move to .deleted/)
+  [RIGHT] temp_data.csv ⊗ (move to .deleted/)
+
+================================================================================
+END DRY RUN - To perform these changes, set dry_run: false in config
+================================================================================
+```
+
+To perform actual synchronization, set `dry_run: false` in your config.yaml.
 
 ## Soft Delete
 

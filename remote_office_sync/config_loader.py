@@ -43,6 +43,17 @@ class Config:
         return self._config["right_root"]
 
     @property
+    def dry_run(self) -> bool:
+        """Get dry run mode flag.
+
+        When True, the sync engine will only simulate actions without making any changes.
+
+        Returns:
+            True if dry run mode is enabled (default), False otherwise
+        """
+        return self._config.get("dry_run", True)
+
+    @property
     def soft_delete_enabled(self) -> bool:
         """Get soft delete enabled flag."""
         return self._config.get("soft_delete", {}).get("enabled", True)
