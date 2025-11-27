@@ -48,14 +48,25 @@ class Config:
         return self._config.get("soft_delete", {}).get("enabled", True)
 
     @property
-    def soft_delete_max_size_mb(self) -> int:
-        """Get soft delete max size in MB."""
-        return self._config.get("soft_delete", {}).get("max_size_mb", 20)
+    def soft_delete_max_size_mb(self) -> int | None:
+        """Get soft delete max size in MB.
+
+        Returns:
+            Max size in MB, or None for unlimited (soft delete everything)
+        """
+        return self._config.get("soft_delete", {}).get("max_size_mb")
 
     @property
-    def soft_delete_max_size_bytes(self) -> int:
-        """Get soft delete max size in bytes."""
-        return self.soft_delete_max_size_mb * 1024 * 1024
+    def soft_delete_max_size_bytes(self) -> int | None:
+        """Get soft delete max size in bytes.
+
+        Returns:
+            Max size in bytes, or None for unlimited (soft delete everything)
+        """
+        max_size_mb = self.soft_delete_max_size_mb
+        if max_size_mb is None:
+            return None
+        return max_size_mb * 1024 * 1024
 
     @property
     def conflict_policy_modify_modify(self) -> str:

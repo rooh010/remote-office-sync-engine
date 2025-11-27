@@ -79,6 +79,23 @@ class TestFileOps:
         if deleted_dir.exists():
             assert len(list(deleted_dir.rglob("*"))) == 0
 
+    def test_soft_delete_unlimited_size(self, temp_dirs):
+        """Test that soft delete with max_size_bytes=None soft deletes all files."""
+        left, right = temp_dirs
+        large_file = left / "large.bin"
+        # Create 50 MB file
+        large_file.write_bytes(b"x" * (50 * 1024 * 1024))
+
+        file_ops = FileOps(soft_delete_root=str(right / ".deleted"))
+        # Pass None to indicate no size limit
+        file_ops.delete_file(str(large_file), soft=True, max_size_bytes=None)
+
+        # Should be soft deleted even though it's large
+        assert not large_file.exists()
+        deleted_dir = right / ".deleted"
+        assert deleted_dir.exists()
+        assert len(list(deleted_dir.rglob("*"))) > 0
+
     def test_rename_file(self, temp_dirs):
         """Test renaming a file."""
         left, _ = temp_dirs
