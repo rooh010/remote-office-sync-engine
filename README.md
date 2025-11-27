@@ -99,7 +99,7 @@ right_root: "P:\\"
 
 soft_delete:
   enabled: true
-  max_size_mb: 20
+  max_size_mb: null  # null = soft delete ALL files (recommended). Or set a number (e.g., 20) for size limit
 
 conflict_policy:
   modify_modify: clash
@@ -189,7 +189,11 @@ Sends email alert but doesn't modify files
 
 ## Soft Delete
 
-Files below the size threshold (default 20MB) are moved to `.deleted/` instead of permanently deleted.
+Deleted files are moved to `.deleted/` instead of permanently deleted.
+
+Configuration options:
+- `max_size_mb: null` - Soft delete ALL files regardless of size (recommended default)
+- `max_size_mb: 20` - Only soft delete files ≤ 20MB; larger files are permanently deleted
 
 This allows recovery if a file was deleted by mistake. Files in `.deleted/` can be:
 - Manually recovered

@@ -10,7 +10,10 @@ right_root: "z:/"
 # Soft delete settings
 soft_delete:
     enabled: true
-    max_size_mb: 20
+    # max_size_mb: Maximum file size to soft delete (in MB)
+    # Set to null or omit to soft delete ALL files regardless of size (recommended)
+    # Set to a number (e.g., 20) to only soft delete files <= that size (larger files are hard deleted)
+    max_size_mb: null
 
 # Conflict resolution policies
 conflict_policy:
