@@ -31,8 +31,24 @@ if (!(Test-Path "venv")) {
     Write-Host "[OK] Virtual environment created"
 }
 
-# Check if pCloud is running (unless --no-pcloud flag is passed)
-if ($args -notcontains "--no-pcloud") {
+# Check if pCloud is running (unless --no-pcloud flag is passed or disabled in config)
+$skipPCloudCheck = $false
+
+# Check command-line flag
+if ($args -contains "--no-pcloud") {
+    $skipPCloudCheck = $true
+}
+
+# Check config.yaml setting (if file exists)
+if ((Test-Path "config.yaml") -and -not $skipPCloudCheck) {
+    $configContent = Get-Content "config.yaml" -Raw
+    # Look for pcloud_check: enabled: false (accounting for comments and whitespace)
+    if ($configContent -match '(?m)^\s*pcloud_check\s*:[\s\S]*?enabled\s*:\s*false') {
+        $skipPCloudCheck = $true
+    }
+}
+
+if (-not $skipPCloudCheck) {
     Write-Host "Checking pCloud status..."
     $pCloudRunning = Get-Process -Name "pCloud" -ErrorAction SilentlyContinue
     if (-not $pCloudRunning) {
@@ -41,6 +57,7 @@ if ($args -notcontains "--no-pcloud") {
         Write-Host "The P:\ drive must be available for sync to work." -ForegroundColor Yellow
         Write-Host ""
         Write-Host "To skip this check, use: run_sync.ps1 --no-pcloud" -ForegroundColor Yellow
+        Write-Host "Or set pcloud_check.enabled: false in config.yaml" -ForegroundColor Yellow
         Write-Host ""
         Read-Host "Press Enter to exit"
         exit 1

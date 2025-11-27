@@ -13,11 +13,25 @@ if not exist venv (
     )
 )
 
-REM Check if pCloud is running (unless --no-pcloud flag is passed)
-REM Use echo to check all arguments without consuming them
+REM Check if pCloud is running (unless --no-pcloud flag is passed or disabled in config)
+set SKIP_PCLOUD_CHECK=0
+
+REM Check command-line flag
 echo %* | findstr /C:"--no-pcloud" >nul
-if errorlevel 1 (
-    REM --no-pcloud not found, do the check
+if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
+
+REM Check config.yaml setting (if file exists and flag not already set)
+if exist config.yaml (
+    if %SKIP_PCLOUD_CHECK%==0 (
+        findstr /R /C:"pcloud_check:" config.yaml >nul 2>&1
+        if not errorlevel 1 (
+            findstr /R /C:"enabled.*:.*false" config.yaml >nul 2>&1
+            if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
+        )
+    )
+)
+
+if %SKIP_PCLOUD_CHECK%==0 (
     echo Checking pCloud status...
     tasklist /FI "IMAGENAME eq pCloud.exe" 2>NUL | find /I /N "pCloud.exe">NUL
     if errorlevel 1 (
@@ -26,6 +40,7 @@ if errorlevel 1 (
         echo The P:\ drive must be available for sync to work.
         echo.
         echo To skip this check, use: run_sync.bat --no-pcloud
+        echo Or set pcloud_check.enabled: false in config.yaml
         echo.
         pause
         exit /b 1
