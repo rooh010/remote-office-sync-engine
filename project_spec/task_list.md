@@ -578,3 +578,21 @@ Archive attribute.
 Currently, shutil.copy2() preserves modification time and permissions but does not preserve Windows file attributes. This could result in hidden files losing their hidden status, read-only files becoming writable, etc.
 
 Implementation would require using Windows API (via win32file or ctypes) to read and set file attributes before/after copy operations.
+
+### Use backslashes instead of forward slashes in config paths:
+
+Update config.template.yaml and documentation to use Windows-style backslashes instead of forward slashes for paths, as this is more familiar to Windows users.
+
+Current approach uses forward slashes to avoid YAML escaping issues:
+
+left_root: "C:/folder/path"
+
+Proposed approach would use single quotes to allow natural backslashes:
+
+left_root: 'C:\folder\path'
+
+Or use escaped backslashes in double quotes:
+
+left_root: "C:\\folder\\path"
+
+This would make the config more intuitive for Windows users who expect to see backslashes in file paths, though it requires choosing the right YAML quoting style.
