@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -371,6 +371,38 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 13 FAILED" $false
+    }
+}
+
+# Test 14: Conflict files in subdirectory (verify they are not placed at root)
+$totalTests++
+Write-TestHeader "Modify-modify conflict in subdirectory" 14
+$subconflictDir = New-Item -ItemType Directory -Path "$leftTestDir\subconflict\nested" -Force
+"Original conflict content" | Set-Content "$leftTestDir\subconflict\nested\file.txt"
+Invoke-Sync | Out-Null
+Start-Sleep -Milliseconds 100
+"Modified on right in subdir" | Set-Content "$rightTestDir\subconflict\nested\file.txt"
+"Modified on left in subdir" | Set-Content "$leftTestDir\subconflict\nested\file.txt"
+if (Invoke-Sync) {
+    # Check that conflict files are in the SUBDIRECTORY, not at root
+    $conflictInSubdir = Get-ChildItem -LiteralPath "$leftTestDir\subconflict\nested" -Filter "file.CONFLICT*" -ErrorAction SilentlyContinue
+    $conflictAtRoot = Get-ChildItem -LiteralPath $leftTestDir -Filter "file.CONFLICT*" -ErrorAction SilentlyContinue
+
+    $correctLocation = ($conflictInSubdir.Count -gt 0) -and ($conflictAtRoot.Count -eq 0)
+    Write-Result "Conflict file in correct subdirectory (not root)" $correctLocation
+
+    # Also verify on right side
+    $conflictRightSubdir = Get-ChildItem -LiteralPath "$rightTestDir\subconflict\nested" -Filter "file.CONFLICT*" -ErrorAction SilentlyContinue
+    $conflictRightRoot = Get-ChildItem -LiteralPath $rightTestDir -Filter "file.CONFLICT*" -ErrorAction SilentlyContinue
+    $correctLocationRight = ($conflictRightSubdir.Count -gt 0) -and ($conflictRightRoot.Count -eq 0)
+    Write-Result "Conflict file in correct subdirectory on right" $correctLocationRight
+
+    if ($correctLocation -and $correctLocationRight) {
+        $passedTests++
+        Write-Result "Test 14 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 14 FAILED" $false
     }
 }
 

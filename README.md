@@ -136,7 +136,7 @@ The project includes a comprehensive manual test suite that validates all sync s
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
 
-**The 13 manual test cases verify:**
+**The 14 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
 2. **File Creation R→L**: Create file on right, sync, verify on left with matching content
@@ -159,6 +159,7 @@ The project includes a comprehensive manual test suite that validates all sync s
     - File content matches on both sides
 12. **Directory Deletion**: Create directory with files on both sides, delete from one side, sync, verify files are deleted from the other side
 13. **Empty Directory Creation R→L**: Create empty directory on right, sync, verify it appears on left
+14. **Conflict Files in Subdirectory**: Create modify-modify conflict in subdirectory, verify conflict files are created in same subdirectory (not at root level)
 
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing

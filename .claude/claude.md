@@ -100,7 +100,7 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
-- Runs all 13 test cases
+- Runs all 14 test cases
 - Reports pass/fail for each test
 - Cleans up test files
 
@@ -132,6 +132,7 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved **and content matches**
 12. **Directory Deletion:** Create directory with files on both sides → delete directory from one side → sync → verify files deleted from other side
 13. **Empty Directory Creation R→L:** Create empty directory on right → sync → verify appears on left
+14. **Conflict Files in Subdirectory:** Create modify-modify conflict in subdirectory → verify conflict files are in subdirectory, NOT at root level
 
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**
