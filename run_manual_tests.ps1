@@ -77,16 +77,14 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$LeftPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
-    # Remove ONLY test-specific conflict files (not any user conflict files)
-    # Test conflict files are named: conflict_test, new_new_conflict, CaseTest, casetest
-    Get-ChildItem -Path "$LeftPath" -Filter "conflict_test*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$RightPath" -Filter "conflict_test*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$LeftPath" -Filter "new_new_conflict*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$RightPath" -Filter "new_new_conflict*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$LeftPath" -Filter "casetest*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$RightPath" -Filter "casetest*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$LeftPath" -Filter "CaseTest*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path "$RightPath" -Filter "CaseTest*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    # Remove ONLY test-specific files and their conflict variants (not any user files)
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*")
+
+    foreach ($pattern in $testPatterns) {
+        Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -Path "$RightPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function New-TestDirectory {
