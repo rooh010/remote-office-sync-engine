@@ -1,5 +1,6 @@
 """Directory scanner for file metadata collection."""
 
+import ctypes
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -20,6 +21,8 @@ class FileMetadata:
     mtime_right: float | None = None
     size_left: int | None = None
     size_right: int | None = None
+    attrs_left: int | None = None
+    attrs_right: int | None = None
 
     def __hash__(self) -> int:
         """Hash by relative path."""
@@ -82,15 +85,68 @@ class Scanner:
         """Check if directory should be ignored (case-insensitive on Windows)."""
         return dir_name.lower() in self.ignore_directories
 
-    def scan_directory(self, root_path: str) -> Dict[str, tuple[float, int]]:
+    @staticmethod
+    def get_file_attributes(path: Path) -> int:
+        """Get Windows file attributes as bitmask.
+
+        Windows attribute constants:
+        - FILE_ATTRIBUTE_HIDDEN = 0x2 -> mapped to 0x01
+        - FILE_ATTRIBUTE_READONLY = 0x1 -> mapped to 0x02
+        - FILE_ATTRIBUTE_ARCHIVE = 0x20 -> mapped to 0x04
+
+        Args:
+            path: Path to file
+
+        Returns:
+            Bitmask: 0x01=Hidden, 0x02=ReadOnly, 0x04=Archive
+            Returns 0 on non-Windows or error
+        """
+        try:
+            # Only works on Windows
+            if not hasattr(ctypes, "windll"):
+                return 0
+
+            # Get Windows file attributes
+            kernel32 = ctypes.windll.kernel32
+            get_file_attributes = kernel32.GetFileAttributesW
+            get_file_attributes.argtypes = [ctypes.c_wchar_p]
+            get_file_attributes.restype = ctypes.c_uint32
+
+            attrs = get_file_attributes(str(path))
+
+            # Invalid handle indicates error
+            if attrs == 0xFFFFFFFF:
+                return 0
+
+            # Map Windows attributes to our bitmask
+            result = 0
+
+            # FILE_ATTRIBUTE_HIDDEN = 0x2 -> our 0x01
+            if attrs & 0x2:
+                result |= 0x01
+
+            # FILE_ATTRIBUTE_READONLY = 0x1 -> our 0x02
+            if attrs & 0x1:
+                result |= 0x02
+
+            # FILE_ATTRIBUTE_ARCHIVE = 0x20 -> our 0x04
+            if attrs & 0x20:
+                result |= 0x04
+
+            return result
+        except Exception as e:
+            logger.debug(f"Could not get attributes for {path}: {e}")
+            return 0
+
+    def scan_directory(self, root_path: str) -> Dict[str, tuple[float, int, int]]:
         """Scan a directory and return file metadata.
 
         Args:
             root_path: Root directory to scan
 
         Returns:
-            Dict mapping relative path to (mtime, size) tuple
-            For directories: size is -1 (sentinel value)
+            Dict mapping relative path to (mtime, size, attrs) tuple
+            For directories: size is -1 (sentinel value), attrs is 0
         """
         result = {}
         root = Path(root_path)
@@ -128,17 +184,18 @@ class Scanner:
 
                     try:
                         stat_info = file_path.stat()
-                        result[relative_path_str] = (stat_info.st_mtime, stat_info.st_size)
+                        attrs = self.get_file_attributes(file_path)
+                        result[relative_path_str] = (stat_info.st_mtime, stat_info.st_size, attrs)
                     except (OSError, IOError) as e:
                         logger.warning(f"Could not stat file {relative_path_str}: {e}")
                 elif file_path.is_dir():
                     # Track empty directories
                     # Check if directory is empty (no files or subdirectories)
                     if not any(file_path.iterdir()):
-                        # Use -1 as sentinel for directory size
+                        # Use -1 as sentinel for directory size, 0 for attrs (don't track dir attrs)
                         try:
                             stat_info = file_path.stat()
-                            result[relative_path_str] = (stat_info.st_mtime, -1)
+                            result[relative_path_str] = (stat_info.st_mtime, -1, 0)
                             logger.debug(f"Found empty directory: {relative_path_str}")
                         except (OSError, IOError) as e:
                             logger.warning(f"Could not stat directory {relative_path_str}: {e}")
@@ -149,7 +206,9 @@ class Scanner:
         return result
 
     def merge_scans(
-        self, left_scan: Dict[str, tuple[float, int]], right_scan: Dict[str, tuple[float, int]]
+        self,
+        left_scan: Dict[str, tuple[float, int, int]],
+        right_scan: Dict[str, tuple[float, int, int]],
     ) -> Dict[str, FileMetadata]:
         """Merge left and right scans into unified metadata.
 
@@ -158,8 +217,8 @@ class Scanner:
         from whichever side has changed it most recently (based on database state when possible).
 
         Args:
-            left_scan: Results from scanning left directory
-            right_scan: Results from scanning right directory
+            left_scan: Results from scanning left directory (mtime, size, attrs tuples)
+            right_scan: Results from scanning right directory (mtime, size, attrs tuples)
 
         Returns:
             Dict mapping relative path to FileMetadata
@@ -201,14 +260,22 @@ class Scanner:
             canonical_path = left_path
 
             # Store with the canonical (left's) case
+            left_attrs = left_scan[left_path][2] if len(left_scan[left_path]) > 2 else None
+            right_attrs = (
+                right_scan[right_actual_path][2]
+                if right_exists and len(right_scan[right_actual_path]) > 2
+                else None
+            )
             metadata = FileMetadata(
                 relative_path=canonical_path,
                 exists_left=True,
                 exists_right=right_exists,
                 mtime_left=left_scan[left_path][0],
                 size_left=left_scan[left_path][1],
+                attrs_left=left_attrs,
                 mtime_right=right_scan[right_actual_path][0] if right_exists else None,
                 size_right=right_scan[right_actual_path][1] if right_exists else None,
+                attrs_right=right_attrs,
             )
             result[canonical_path] = metadata
 
@@ -216,28 +283,38 @@ class Scanner:
             # This entry represents the file as it exists on right with its actual case
             if right_exists and right_actual_path != left_path and right_actual_path not in result:
                 # Create metadata entry showing file exists on right with different case
+                right_attrs = (
+                    right_scan[right_actual_path][2]
+                    if len(right_scan[right_actual_path]) > 2
+                    else None
+                )
                 right_case_metadata = FileMetadata(
                     relative_path=right_actual_path,
                     exists_left=False,  # Not at this case on left
                     exists_right=True,
                     mtime_left=None,
                     size_left=None,
+                    attrs_left=None,
                     mtime_right=right_scan[right_actual_path][0],
                     size_right=right_scan[right_actual_path][1],
+                    attrs_right=right_attrs,
                 )
                 result[right_actual_path] = right_case_metadata
 
         # Process right files that weren't matched
         for right_path in right_scan.keys():
             if right_path not in processed_right:
+                right_attrs = right_scan[right_path][2] if len(right_scan[right_path]) > 2 else None
                 metadata = FileMetadata(
                     relative_path=right_path,  # Use right case since no left match
                     exists_left=False,
                     exists_right=True,
                     mtime_left=None,
                     size_left=None,
+                    attrs_left=None,
                     mtime_right=right_scan[right_path][0],
                     size_right=right_scan[right_path][1],
+                    attrs_right=right_attrs,
                 )
                 result[right_path] = metadata
 
