@@ -124,7 +124,7 @@ The project includes a comprehensive manual test suite that validates all sync s
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
 
-**The 15 manual test cases verify:**
+**The 17 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
 2. **File Creation R→L**: Create file on right, sync, verify on left with matching content
@@ -154,6 +154,8 @@ The project includes a comprehensive manual test suite that validates all sync s
     - Multiple file deletions across directories
     - Multiple directory creations with nested structures
     - Verify all operations sync correctly and conflicts are properly handled
+16. **Case Conflict in Subdirectory**: Create case-insensitive conflict in subdirectory, verify conflict files exist in subdirectory with proper casing
+17. **File Attribute Synchronization**: Create file with attributes, sync, set different attributes on each side, verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
 
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing

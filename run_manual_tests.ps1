@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test, attr_test
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*", "attr_test*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -523,6 +523,98 @@ if (Invoke-Sync) {
         $failedTests++
         Write-Result "Test 16 FAILED" $false
     }
+}
+
+# Test 17: File attribute synchronization
+$totalTests++
+Write-TestHeader "File attribute synchronization" 17
+
+# Create test files with attributes
+$attrTestDir = New-Item -ItemType Directory -Path "$leftTestDir\attr_test" -Force
+"Test file with attributes" | Set-Content "$attrTestDir\file.txt"
+
+# Sync to right side
+Invoke-Sync | Out-Null
+Start-Sleep -Milliseconds 100
+
+# Function to set file attributes using PowerShell
+function Set-FileAttribute {
+    param([string]$Path, [ValidateSet('Hidden', 'ReadOnly', 'Archive')]$Attribute)
+    $file = Get-Item -LiteralPath $Path -Force
+    $file.Attributes = $file.Attributes -bor [System.IO.FileAttributes]::$Attribute
+}
+
+# Function to check if file has attribute
+function Test-FileAttribute {
+    param([string]$Path, [ValidateSet('Hidden', 'ReadOnly', 'Archive')]$Attribute)
+    $file = Get-Item -LiteralPath $Path -Force
+    return ($file.Attributes -band [System.IO.FileAttributes]::$Attribute) -ne 0
+}
+
+try {
+    # Set ReadOnly attribute on left file
+    Set-FileAttribute -Path "$attrTestDir\file.txt" -Attribute ReadOnly
+
+    # Sync (should detect attribute change and sync)
+    if (Invoke-Sync) {
+        # Wait a moment for file operations
+        Start-Sleep -Milliseconds 100
+
+        # Check if right side has the ReadOnly attribute
+        $rightAttrDir = "$rightTestDir\attr_test"
+        $rightFile = "$rightAttrDir\file.txt"
+
+        if (Test-Path -LiteralPath $rightFile) {
+            $rightHasReadOnly = Test-FileAttribute -Path $rightFile -Attribute ReadOnly
+            Write-Result "Left file has ReadOnly attribute" $true
+            Write-Result "Right file synced with ReadOnly attribute" $rightHasReadOnly
+
+            # Test another attribute: Archive
+            Set-FileAttribute -Path "$attrTestDir\file.txt" -Attribute Archive
+
+            if (Invoke-Sync) {
+                Start-Sleep -Milliseconds 100
+                $rightHasArchive = Test-FileAttribute -Path $rightFile -Attribute Archive
+                Write-Result "Archive attribute synced left→right" $rightHasArchive
+
+                # Set attribute on right side
+                Set-FileAttribute -Path $rightFile -Attribute Hidden
+
+                if (Invoke-Sync) {
+                    Start-Sleep -Milliseconds 100
+                    $leftHasHidden = Test-FileAttribute -Path "$attrTestDir\file.txt" -Attribute Hidden
+                    Write-Result "Hidden attribute synced right→left" $leftHasHidden
+
+                    # Test combined attributes
+                    $leftFileObj = Get-Item -LiteralPath "$attrTestDir\file.txt" -Force
+                    $rightFileObj = Get-Item -LiteralPath $rightFile -Force
+
+                    if ($rightHasReadOnly -and $rightHasArchive -and $leftHasHidden) {
+                        $passedTests++
+                        Write-Result "Test 17 PASSED - Attributes synchronized correctly" $true
+                    } else {
+                        $failedTests++
+                        Write-Result "Test 17 FAILED - Not all attributes synced correctly" $false
+                    }
+                } else {
+                    $failedTests++
+                    Write-Result "Test 17 FAILED - Sync failed for right→left sync" $false
+                }
+            } else {
+                $failedTests++
+                Write-Result "Test 17 FAILED - Sync failed for Archive attribute" $false
+            }
+        } else {
+            $failedTests++
+            Write-Result "Test 17 FAILED - File not synced to right side" $false
+        }
+    } else {
+        $failedTests++
+        Write-Result "Test 17 FAILED - Initial sync failed" $false
+    }
+} catch {
+    Write-Result "Test 17 FAILED - Error during attribute test: $_" $false
+    $failedTests++
 }
 
 # Summary

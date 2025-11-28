@@ -100,7 +100,7 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
-- Runs all 15 test cases
+- Runs all 17 test cases
 - Reports pass/fail for each test
 - Cleans up test files
 
@@ -139,6 +139,8 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
     - Multiple file deletions
     - Multiple directory creations and deletions
     - Verify all operations complete and conflicts are properly handled
+16. **Case Conflict in Subdirectory:** Create case-insensitive conflict in subdirectory → verify main and conflict files exist in subdirectory with correct case
+17. **File Attribute Synchronization:** Create file with attributes → sync → set different attributes on each side → verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
 
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**
