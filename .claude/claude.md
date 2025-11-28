@@ -79,8 +79,60 @@ This project is experimental and should NOT be used in any production environmen
 2. **Lint:** `ruff check .` - Must show "All checks passed!"
 3. **Type Check:** `mypy` (optional but recommended)
 4. **Test:** `pytest` - All tests must pass
-5. **Run:** Start the application and verify it responds correctly
-6. **Docker:** `docker compose up --build -d` - Verify all services start successfully
+5. **Manual Tests:** Run critical manual tests (see Manual Testing section below)
+6. **Run:** Start the application and verify it responds correctly
+7. **Docker:** `docker compose up --build -d` - Verify all services start successfully (if applicable)
+
+### Manual Testing Requirements (CRITICAL)
+**Before every push, manually verify these scenarios with real directories:**
+
+Test directories: `C:\pdrive_local\` (left) and `p:\` (right)
+
+Set `dry_run: false` in config.yaml for testing, restore to `true` after.
+
+#### Core Operations (MUST ALL PASS):
+1. **File Creation L→R:** Create file on left → sync → verify on right
+2. **File Creation R→L:** Create file on right → sync → verify on left
+3. **File Modification L→R:** Modify file on left → sync → verify on right
+4. **File Modification R→L:** Modify file on right → sync → verify on left
+5. **File Deletion (Left):** Delete from left → sync → verify deleted from right
+6. **File Deletion (Right):** Delete from right → sync → verify deleted from left
+7. **Directory Sync:** Create directory on one side → sync → verify on other side
+8. **Modify-Modify Conflict:** Modify same file differently on both sides → verify conflict file created
+9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected
+10. **Case Change:** Rename file changing case → verify case conflict handled correctly
+11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved
+
+#### Deletion Testing (CRITICAL - Previously Broken):
+- **NEVER skip deletion tests** - this was a critical bug that wasn't caught by unit tests
+- After sync, verify state database reflects actual filesystem (not pre-sync state)
+- Ensure files are NOT copied back after deletion
+- Verify soft-delete moves files to `.deleted/` folder when enabled
+
+#### Quick Test Script Template:
+```bash
+# Enable real sync
+# Change dry_run: false in config.yaml
+
+# Test file creation & deletion
+echo "test content" > C:\pdrive_local\manual_test.txt
+python -m remote_office_sync.main  # Should copy to right
+rm C:\pdrive_local\manual_test.txt
+python -m remote_office_sync.main  # Should delete from right
+# Verify p:\manual_test.txt is deleted (or in .deleted/)
+
+# Restore dry run
+# Change dry_run: true in config.yaml
+```
+
+#### Test Failure Protocol:
+If ANY manual test fails:
+1. **DO NOT COMMIT** - Fix the issue first
+2. Add a unit test that reproduces the failure
+3. Fix the bug
+4. Verify unit test passes
+5. Re-run ALL manual tests
+6. Only then proceed with commit
 
 ### Python Quality Standards:
 - Formatter: black (line length 100, enforced)
