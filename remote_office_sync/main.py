@@ -639,6 +639,34 @@ class SyncRunner:
                             f"[DELETE_DIR_RIGHT] Skipping {job.file_path}: " f"directory not empty"
                         )
 
+            elif job.action == SyncAction.SYNC_ATTRS_LEFT_TO_RIGHT:
+                # Sync attributes from left to right
+                attrs = job.payload.get("attrs", 0) if job.payload else 0
+                if self.file_ops.set_file_attributes(str(right_path), attrs):
+                    logger.info(
+                        f"[SYNC_ATTRS_LEFT_TO_RIGHT] {job.file_path} - "
+                        f"attributes synced to right (0x{attrs:02x})"
+                    )
+                else:
+                    logger.warning(
+                        f"[SYNC_ATTRS_LEFT_TO_RIGHT] Failed to sync attributes "
+                        f"to right for {job.file_path}"
+                    )
+
+            elif job.action == SyncAction.SYNC_ATTRS_RIGHT_TO_LEFT:
+                # Sync attributes from right to left
+                attrs = job.payload.get("attrs", 0) if job.payload else 0
+                if self.file_ops.set_file_attributes(str(left_path), attrs):
+                    logger.info(
+                        f"[SYNC_ATTRS_RIGHT_TO_LEFT] {job.file_path} - "
+                        f"attributes synced to left (0x{attrs:02x})"
+                    )
+                else:
+                    logger.warning(
+                        f"[SYNC_ATTRS_RIGHT_TO_LEFT] Failed to sync attributes "
+                        f"to left for {job.file_path}"
+                    )
+
             elif job.action == SyncAction.NOOP:
                 logger.info(f"[NOOP] {job.file_path}: {job.details}")
 

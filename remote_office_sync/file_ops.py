@@ -1,5 +1,6 @@
 """File operations layer for sync actions."""
 
+import ctypes
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -27,13 +28,59 @@ class FileOps:
         """
         self.soft_delete_root = soft_delete_root
 
-    def copy_file(self, src: str, dst: str, preserve_mtime: bool = True) -> None:
+    def set_file_attributes(self, path: str, attrs: int) -> bool:
+        """Set Windows file attributes from bitmask.
+
+        Args:
+            path: Path to file
+            attrs: Bitmask (0x01=Hidden, 0x02=ReadOnly, 0x04=Archive)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Only works on Windows
+            if not hasattr(ctypes, "windll"):
+                return False
+
+            kernel32 = ctypes.windll.kernel32
+            set_attrs = kernel32.SetFileAttributesW
+            set_attrs.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32]
+            set_attrs.restype = ctypes.c_bool
+
+            # Convert our bitmask to Windows attribute flags
+            win_attrs = 0x80  # FILE_ATTRIBUTE_NORMAL base
+
+            if attrs & 0x01:  # Hidden
+                win_attrs |= 0x2  # FILE_ATTRIBUTE_HIDDEN
+
+            if attrs & 0x02:  # ReadOnly
+                win_attrs |= 0x1  # FILE_ATTRIBUTE_READONLY
+
+            if attrs & 0x04:  # Archive
+                win_attrs |= 0x20  # FILE_ATTRIBUTE_ARCHIVE
+
+            result = set_attrs(str(path), win_attrs)
+            if result:
+                logger.debug(f"Set attributes 0x{attrs:02x} on {path}")
+            else:
+                logger.warning(f"Failed to set attributes on {path}")
+
+            return result
+        except Exception as e:
+            logger.debug(f"Could not set attributes on {path}: {e}")
+            return False
+
+    def copy_file(
+        self, src: str, dst: str, preserve_mtime: bool = True, preserve_attrs: bool = True
+    ) -> None:
         """Copy file from source to destination.
 
         Args:
             src: Source file path
             dst: Destination file path
             preserve_mtime: Whether to preserve modification time
+            preserve_attrs: Whether to preserve file attributes
 
         Raises:
             FileOpsError: If copy fails
@@ -64,6 +111,14 @@ class FileOps:
             # Verify copy
             if not dst_path.exists():
                 raise FileOpsError(f"Copy verification failed: {dst}")
+
+            # Preserve attributes if requested
+            if preserve_attrs:
+                from remote_office_sync.scanner import Scanner
+
+                src_attrs = Scanner.get_file_attributes(src_path)
+                if src_attrs:
+                    self.set_file_attributes(str(dst_path), src_attrs)
 
             logger.info(f"Copied file: {src} -> {dst}")
         except (OSError, IOError, shutil.Error) as e:
