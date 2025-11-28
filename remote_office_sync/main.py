@@ -490,8 +490,10 @@ class SyncRunner:
                     conflict_name = (
                         f"{conflict_stem}.CONFLICT.{self.username}.{timestamp}{conflict_suffix}"
                     )
-                    left_conflict = Path(self.config.left_root) / conflict_name
-                    right_conflict = Path(self.config.right_root) / conflict_name
+                    # Preserve directory structure for conflict file
+                    file_dir = Path(job.file_path).parent
+                    left_conflict = Path(self.config.left_root) / file_dir / conflict_name
+                    right_conflict = Path(self.config.right_root) / file_dir / conflict_name
                     left_conflict.parent.mkdir(parents=True, exist_ok=True)
                     right_conflict.parent.mkdir(parents=True, exist_ok=True)
 

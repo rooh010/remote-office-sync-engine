@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -403,6 +403,90 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 14 FAILED" $false
+    }
+}
+
+# Test 15: Comprehensive stress test - multiple operations simultaneously
+$totalTests++
+Write-TestHeader "Comprehensive stress test: many operations and conflicts" 15
+Write-Host "Creating complex scenario with multiple simultaneous operations..." -ForegroundColor $WarningColor
+
+# Create directory structures
+$stressDir = "$leftTestDir\stress_test"
+mkdir -Force "$stressDir\docs" | Out-Null
+mkdir -Force "$stressDir\media\images" | Out-Null
+mkdir -Force "$stressDir\logs" | Out-Null
+
+# Create initial files and sync
+"Initial doc 1" | Set-Content "$stressDir\docs\doc1.txt"
+"Initial doc 2" | Set-Content "$stressDir\docs\doc2.txt"
+"Image file 1" | Set-Content "$stressDir\media\images\img1.txt"
+"Log entry 1" | Set-Content "$stressDir\logs\app.log"
+"Will be deleted from left" | Set-Content "$stressDir\to_delete_left.txt"
+
+Invoke-Sync | Out-Null
+Start-Sleep -Milliseconds 100
+
+# Now create simultaneous operations on both sides
+# LEFT SIDE operations
+"Modified doc1 from left" | Set-Content "$stressDir\docs\doc1.txt"
+"New file on left" | Set-Content "$stressDir\new_left_file.txt"
+mkdir -Force "$stressDir\media\videos" | Out-Null
+"Video file" | Set-Content "$stressDir\media\videos\movie.txt"
+Remove-Item "$stressDir\to_delete_left.txt" -Force
+
+# RIGHT SIDE operations (create mirror structure and modifications)
+$stressDirRight = "$rightTestDir\stress_test"
+mkdir -Force "$stressDirRight\docs" | Out-Null
+mkdir -Force "$stressDirRight\media\images" | Out-Null
+mkdir -Force "$stressDirRight\logs" | Out-Null
+
+# RIGHT: Modify existing files differently (conflicts!)
+"Modified doc1 from right" | Set-Content "$stressDirRight\docs\doc1.txt"
+"Different doc2 content right" | Set-Content "$stressDirRight\docs\doc2.txt"
+
+# RIGHT: Create different new files
+"New file on right" | Set-Content "$stressDirRight\new_right_file.txt"
+"Config on right" | Set-Content "$stressDirRight\config.ini"
+
+# RIGHT: Create new directories with files
+mkdir -Force "$stressDirRight\data" | Out-Null
+"Data file" | Set-Content "$stressDirRight\data\data.csv"
+mkdir -Force "$stressDirRight\media\audio" | Out-Null
+"Audio file" | Set-Content "$stressDirRight\media\audio\song.txt"
+
+# RIGHT: Delete a file
+Remove-Item "$stressDirRight\to_delete_left.txt" -Force -ErrorAction SilentlyContinue
+
+# Run sync and verify everything works
+if (Invoke-Sync) {
+    # Verify files were synced
+    $leftNewRight = Test-Path "$stressDir\new_right_file.txt"
+    $rightNewLeft = Test-Path "$stressDirRight\new_left_file.txt"
+
+    # Verify directories were synced
+    $leftVideos = Test-Path "$stressDir\media\videos" -PathType Container
+    $leftData = Test-Path "$stressDir\data" -PathType Container
+    $rightAudio = Test-Path "$stressDirRight\media\audio" -PathType Container
+
+    # Verify conflicts exist (doc1.txt and doc2.txt should have conflicts)
+    $conflictsDocs = @(Get-ChildItem -LiteralPath "$stressDir\docs" -Filter "*.CONFLICT*" -ErrorAction SilentlyContinue)
+    $conflictsRight = @(Get-ChildItem -LiteralPath "$stressDirRight\docs" -Filter "*.CONFLICT*" -ErrorAction SilentlyContinue)
+    $hasConflicts = ($conflictsDocs.Count -gt 0) -and ($conflictsRight.Count -gt 0)
+
+    Write-Result "New file synced left→right" $leftNewRight
+    Write-Result "New file synced right→left" $rightNewLeft
+    Write-Result "New directory synced (videos)" $leftVideos
+    Write-Result "New directory synced (data)" $leftData
+    Write-Result "New directory synced (audio)" $rightAudio
+    Write-Result "Conflicts detected in docs" $hasConflicts
+
+    if ($leftNewRight -and $rightNewLeft -and $leftVideos -and $leftData -and $rightAudio -and $hasConflicts) {
+        $passedTests++
+        Write-Result "Test 15 PASSED - Complex scenario handled successfully" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 15 FAILED" $false
     }
 }
 
