@@ -792,6 +792,16 @@ class SyncEngine:
                             details="Deleted on right but changed on left",
                         )
                     )
+            else:
+                # File exists only on left, and did before too → sync asymmetry, copy to right
+                # This handles orphaned files (e.g., old conflict files created before fixes)
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.COPY_LEFT_TO_RIGHT,
+                        file_path=file_path,
+                        details="File exists only on left (asymmetry fix)",
+                    )
+                )
 
         # Rule: File only on right
         elif curr_metadata.exists_right and not curr_metadata.exists_left:
@@ -836,6 +846,16 @@ class SyncEngine:
                             details="Deleted on left but changed on right",
                         )
                     )
+            else:
+                # File exists only on right, and did before too → sync asymmetry, copy to left
+                # This handles orphaned files (e.g., old conflict files created before fixes)
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.COPY_RIGHT_TO_LEFT,
+                        file_path=file_path,
+                        details="File exists only on right (asymmetry fix)",
+                    )
+                )
 
         # Rule: File on both sides but only one changed
         elif curr_metadata.exists_left and curr_metadata.exists_right:
