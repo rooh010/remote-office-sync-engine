@@ -98,8 +98,8 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 5. **File Deletion (Left):** Delete from left → sync → verify deleted from right
 6. **File Deletion (Right):** Delete from right → sync → verify deleted from left
 7. **Directory Sync:** Create directory on one side → sync → verify on other side
-8. **Modify-Modify Conflict:** Modify same file differently on both sides → verify conflict file created
-9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected
+8. **Modify-Modify Conflict:** Modify same file differently on both sides → verify conflict file created **ON BOTH SIDES** (not just one!)
+9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected **AND conflict file exists on both sides**
 10. **Case Change:** Rename file changing case → verify case conflict handled correctly
 11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved
 
