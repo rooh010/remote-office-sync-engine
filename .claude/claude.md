@@ -110,6 +110,20 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 - For binary files, compare checksums: `Get-FileHash`
 - Verify both the main file AND any conflict files have correct content
 
+#### Conflict Resolution Behavior (CRITICAL):
+**When conflicts occur (modify-modify or new-new), the expected behavior is:**
+- **Main file (without .CONFLICT)** = The NEWEST version (by modification timestamp)
+- **.CONFLICT file** = The OLDEST version (preserved for reference)
+- **Both sides** must have BOTH files (main + conflict)
+
+**To verify conflict resolution:**
+1. Check that the main file contains the content from the file with the newer timestamp
+2. Check that the .CONFLICT file contains the content from the file with the older timestamp
+3. Verify BOTH files exist on BOTH sides (left and right)
+4. Example: If left modified at 10:00 and right modified at 10:05:
+   - Main file should have right's content (newer)
+   - .CONFLICT file should have left's content (older)
+
 #### Deletion Testing (CRITICAL - Previously Broken):
 - **NEVER skip deletion tests** - this was a critical bug that wasn't caught by unit tests
 - After sync, verify state database reflects actual filesystem (not pre-sync state)
