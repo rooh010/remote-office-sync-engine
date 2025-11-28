@@ -13,7 +13,7 @@
 
 ---
 
-A Python-based bidirectional file synchronization tool for syncing between local and network drives with intelligent conflict resolution, soft delete, and email notifications.
+A Python-based bidirectional file synchronization tool for syncing between two directories (e.g., a mapped network drive and a local folder, or any two local folders). Perfect for remote office environments where you need to keep files in sync between a central location and a local workstation.
 
 ## Features
 
@@ -23,7 +23,8 @@ A Python-based bidirectional file synchronization tool for syncing between local
 - **Soft Delete**: Safely move deleted files to a `.deleted/` folder before permanent deletion
 - **Ignore Rules**: Skip files by extension, prefix, or exact name
 - **State Tracking**: SQLite database remembers last sync state
-- **Email Alerts**: Get notified of conflicts and errors
+- **File Attributes**: Synchronize Windows file attributes (Hidden, ReadOnly, Archive)
+- **Email Alerts**: Get notified of conflicts and errors (optional)
 - **Comprehensive Logging**: Full audit trail of all sync operations
 - **Case-Sensitive**: File name case changes (e.g., `Document.txt` → `document.txt`) are synced
 
@@ -76,12 +77,6 @@ run_sync.bat
 
 REM Perform actual synchronization
 run_sync.bat --no-dry-run
-
-REM Skip pCloud check (if pCloud runs under different name or for testing)
-run_sync.bat --no-pcloud
-
-REM Combine flags
-run_sync.bat --no-dry-run --no-pcloud
 ```
 
 **Windows PowerShell:**
@@ -91,12 +86,6 @@ run_sync.bat --no-dry-run --no-pcloud
 
 # Perform actual synchronization
 .\run_sync.ps1 --no-dry-run
-
-# Skip pCloud check
-.\run_sync.ps1 --no-pcloud
-
-# Combine flags
-.\run_sync.ps1 --no-dry-run --no-pcloud
 ```
 
 **Python Direct (all platforms):**
@@ -114,7 +103,6 @@ python -m remote_office_sync.main --config C:/path/to/custom-config.yaml --no-dr
 **Command-line Arguments:**
 - `--config <path>` - Path to config.yaml file (default: config.yaml)
 - `--no-dry-run` - Override config and perform actual synchronization (bypasses dry_run: true in config)
-- `--no-pcloud` - Skip pCloud running check (script-level only, for BAT/PS1 files)
 - `--use-env` - Load config path from SYNC_CONFIG environment variable (advanced)
 
 ### Run Tests
@@ -136,7 +124,7 @@ The project includes a comprehensive manual test suite that validates all sync s
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
 
-**The 15 manual test cases verify:**
+**The 17 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
 2. **File Creation R→L**: Create file on right, sync, verify on left with matching content
@@ -166,6 +154,8 @@ The project includes a comprehensive manual test suite that validates all sync s
     - Multiple file deletions across directories
     - Multiple directory creations with nested structures
     - Verify all operations sync correctly and conflicts are properly handled
+16. **Case Conflict in Subdirectory**: Create case-insensitive conflict in subdirectory, verify conflict files exist in subdirectory with proper casing
+17. **File Attribute Synchronization**: Create file with attributes, sync, set different attributes on each side, verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
 
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
@@ -223,8 +213,6 @@ logging:
   max_size_mb: 10
   backup_count: 5
 
-pcloud_check:
-  enabled: true  # Check if pCloud.exe is running before sync
 ```
 
 **CRITICAL:** Windows paths in YAML **MUST use forward slashes (`/`)**:
@@ -242,25 +230,6 @@ The sync engine includes comprehensive logging with automatic log rotation:
 - **backup_count**: Number of old log files to keep (default: 5)
 
 Log files include the username of the user running the sync process, useful for tracking who made changes in multi-user environments. Set `rotation_enabled: false` to disable rotation and keep all logs in a single file for debugging.
-
-### pCloud Check
-
-The sync scripts automatically verify that pCloud.exe is running before starting the sync. This prevents errors when the P:/ drive is not mounted.
-
-**Configuration:**
-```yaml
-pcloud_check:
-  enabled: true  # Default: true
-```
-
-**To skip the check:**
-- Command-line: `run_sync.bat --no-pcloud` or `run_sync.ps1 --no-pcloud`
-- Config file: Set `enabled: false`
-
-**Use cases for disabling:**
-- pCloud runs under a different process name
-- Using a different cloud drive provider
-- Testing without pCloud mounted
 
 ### Email Notifications (Optional)
 

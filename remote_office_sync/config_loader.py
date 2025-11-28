@@ -181,7 +181,7 @@ class Config:
     @property
     def pcloud_check_enabled(self) -> bool:
         """Get whether to check if pCloud is running before sync."""
-        return self._config.get("pcloud_check", {}).get("enabled", True)
+        return self._config.get("pcloud_check", {}).get("enabled", False)
 
     def to_dict(self) -> Dict[str, Any]:
         """Return config as dictionary."""

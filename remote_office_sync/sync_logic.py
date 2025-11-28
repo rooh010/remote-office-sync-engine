@@ -31,6 +31,8 @@ class SyncAction(Enum):
     CREATE_DIR_RIGHT = "CREATE_DIR_RIGHT"
     DELETE_DIR_LEFT = "DELETE_DIR_LEFT"
     DELETE_DIR_RIGHT = "DELETE_DIR_RIGHT"
+    SYNC_ATTRS_LEFT_TO_RIGHT = "SYNC_ATTRS_LEFT_TO_RIGHT"
+    SYNC_ATTRS_RIGHT_TO_LEFT = "SYNC_ATTRS_RIGHT_TO_LEFT"
     NOOP = "NOOP"
 
 
@@ -210,6 +212,87 @@ class SyncEngine:
                             details="Empty directory deleted from both sides",
                         )
                     )
+
+        # Detect and handle attribute-only changes
+        for file_path, curr_metadata in self.current_state.items():
+            if file_path in processed:
+                continue
+
+            # Skip directories (don't track attributes for dirs)
+            if curr_metadata.is_directory():
+                continue
+
+            # File exists on both sides
+            if not (curr_metadata.exists_left and curr_metadata.exists_right):
+                continue
+
+            prev_metadata = self.previous_state.get(file_path)
+            if not prev_metadata:
+                continue
+
+            # Check if content is unchanged (same mtime and size)
+            left_unchanged = (
+                prev_metadata.mtime_left == curr_metadata.mtime_left
+                and prev_metadata.size_left == curr_metadata.size_left
+            )
+            right_unchanged = (
+                prev_metadata.mtime_right == curr_metadata.mtime_right
+                and prev_metadata.size_right == curr_metadata.size_right
+            )
+
+            if not (left_unchanged and right_unchanged):
+                continue
+
+            # Content is unchanged - check for attribute changes
+            left_attrs = curr_metadata.attrs_left or 0
+            right_attrs = curr_metadata.attrs_right or 0
+
+            if left_attrs == right_attrs:
+                continue
+
+            # Attributes differ - determine which side changed
+            prev_left_attrs = prev_metadata.attrs_left or 0
+            prev_right_attrs = prev_metadata.attrs_right or 0
+
+            if prev_left_attrs != left_attrs:
+                # Left side changed attributes
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.SYNC_ATTRS_LEFT_TO_RIGHT,
+                        file_path=file_path,
+                        payload={"attrs": left_attrs},
+                    )
+                )
+                processed.add(file_path)
+            elif prev_right_attrs != right_attrs:
+                # Right side changed attributes
+                jobs.append(
+                    SyncJob(
+                        action=SyncAction.SYNC_ATTRS_RIGHT_TO_LEFT,
+                        file_path=file_path,
+                        payload={"attrs": right_attrs},
+                    )
+                )
+                processed.add(file_path)
+            else:
+                # Both sides have attributes but they differ - use newer mtime
+                if curr_metadata.mtime_left > curr_metadata.mtime_right:
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.SYNC_ATTRS_LEFT_TO_RIGHT,
+                            file_path=file_path,
+                            payload={"attrs": left_attrs},
+                        )
+                    )
+                else:
+                    jobs.append(
+                        SyncJob(
+                            action=SyncAction.SYNC_ATTRS_RIGHT_TO_LEFT,
+                            file_path=file_path,
+                            payload={"attrs": right_attrs},
+                        )
+                    )
+                processed.add(file_path)
 
         logger.info(f"Generated {len(jobs)} sync jobs")
         for job in jobs:
