@@ -76,7 +76,8 @@ logging:
     max_size_mb: 10
     backup_count: 5
 
-# pCloud check (for P:/ drive sync)
+# Optional: Drive check (e.g., pCloud, OneDrive, etc.)
+# Only needed if syncing to a cloud-mounted drive that might not be mounted
 pcloud_check:
-    enabled: true  # Check if pCloud.exe is running before sync (prevents errors if P:/ not mounted)
-                   # Set to false to skip check, or use --no-pcloud command-line flag
+    enabled: false  # Set to true to check if pCloud.exe (or similar) is running before sync
+                    # This prevents errors if a cloud drive like P:/ is not mounted
