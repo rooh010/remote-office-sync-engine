@@ -192,9 +192,16 @@ class SyncRunner:
         # After case conflicts are resolved, remove variant entries from state
         self._cleanup_case_variants(current_state)
 
-        # Save updated state
+        # Rescan directories to get the actual state after sync operations
+        logger.info("Rescanning directories after sync to capture actual state")
+        scanner = Scanner()
+        left_scan = scanner.scan_directory(self.config.left_root)
+        right_scan = scanner.scan_directory(self.config.right_root)
+        final_state = scanner.merge_scans(left_scan, right_scan)
+
+        # Save the actual post-sync state
         logger.info("Saving sync state")
-        self.state_db.save_state(current_state)
+        self.state_db.save_state(final_state)
 
         # Send notifications
         if self.conflict_alerts:
