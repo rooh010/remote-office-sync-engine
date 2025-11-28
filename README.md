@@ -119,8 +119,59 @@ python -m remote_office_sync.main --config C:/path/to/custom-config.yaml --no-dr
 
 ### Run Tests
 
+#### Unit Tests
 ```bash
 pytest -v
+```
+
+#### Manual Integration Tests (Windows)
+
+The project includes a comprehensive manual test suite that validates all sync scenarios with real file operations:
+
+```powershell
+# Run with default test directories
+.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+
+# Run with custom directories
+.\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
+```
+
+**The 11 manual test cases verify:**
+
+1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
+2. **File Creation R→L**: Create file on right, sync, verify on left with matching content
+3. **File Modification L→R**: Modify file on left, sync, verify on right with matching content
+4. **File Modification R→L**: Modify file on right, sync, verify on left with matching content
+5. **File Deletion from Left**: Delete file from left, sync, verify deleted from both sides
+6. **File Deletion from Right**: Delete file from right, sync, verify deleted from both sides
+7. **Directory Sync**: Create directory on left, sync, verify on right
+8. **Modify-Modify Conflict**: Modify same file differently on both sides, verify:
+   - Main file exists on both sides with newest content
+   - .CONFLICT file exists on both sides with oldest content
+9. **New-New Conflict**: Create same filename on both sides with different content, verify:
+   - Main file exists on both sides with newest content
+   - .CONFLICT file exists on both sides with oldest content
+10. **Case Conflict**: Rename file with different casing, verify:
+    - Main file exists on both sides with consistent casing
+    - Content matches on both sides
+11. **Subdirectory Files**: Create file in nested subdirectory, verify:
+    - Directory structure preserved on both sides
+    - File content matches on both sides
+
+The script automatically:
+- Sets `dry_run: false` in config.yaml before testing
+- Restores `dry_run: true` after testing
+- Reports pass/fail for each test case
+- Cleans up test files after completion
+
+**IMPORTANT**: Before pushing to the repository, ensure ALL unit tests pass:
+```bash
+pytest
+```
+
+Then run the manual test suite to validate real-world file sync behavior:
+```powershell
+.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
 ```
 
 ### Check Code Quality

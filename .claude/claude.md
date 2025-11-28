@@ -84,6 +84,34 @@ This project is experimental and should NOT be used in any production environmen
 7. **Docker:** `docker compose up --build -d` - Verify all services start successfully (if applicable)
 
 ### Manual Testing Requirements (CRITICAL)
+**Before every push, run the automated test suite using the PowerShell script below.**
+
+#### Automated Testing (RECOMMENDED - Use This Method)
+Instead of running tests manually, use the automated PowerShell script: `run_manual_tests.ps1`
+
+```powershell
+# Run with default test directories
+.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+
+# Run with custom directories
+.\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
+```
+
+The script automatically:
+- Sets `dry_run: false` in config.yaml before testing
+- Restores `dry_run: true` after testing
+- Runs all 11 test cases
+- Reports pass/fail for each test
+- Cleans up test files
+
+**IMPORTANT - SYNCHRONIZATION REQUIREMENT:**
+- Keep `run_manual_tests.ps1` synchronized with the test cases documented below
+- If you add, remove, or modify any test cases, update BOTH:
+  1. The test list in this document
+  2. The PowerShell script in `run_manual_tests.ps1`
+- Both must always have the same number of tests and same test names
+
+#### Manual Testing (If Running Tests Manually)
 **Before every push, manually verify these scenarios with real directories:**
 
 Test directories: `C:\pdrive_local\` (left) and `p:\` (right)
