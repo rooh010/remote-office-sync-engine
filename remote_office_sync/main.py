@@ -284,23 +284,37 @@ class SyncRunner:
                     # Determine which is older and create conflict file from it
                     if left_mtime > right_mtime:
                         # Left is newer - create conflict from right (older)
-                        conflict_file = self.file_ops.create_clash_file(
+                        conflict_file_right = self.file_ops.create_clash_file(
                             str(right_path), username=self.username
                         )
                         self.file_ops.copy_file(str(left_path), str(right_path))
+                        # Copy conflict file to left so both sides have both versions
+                        conflict_file_left = str(
+                            Path(self.config.left_root)
+                            / Path(conflict_file_right).name
+                        )
+                        self.file_ops.copy_file(conflict_file_right, conflict_file_left)
                         logger.info(
                             f"[CONFLICT] {job.file_path}: "
-                            f"older version saved as {conflict_file}"
+                            f"older version saved as {Path(conflict_file_right).name} "
+                            "on both sides"
                         )
                     else:
                         # Right is newer - create conflict from left (older)
-                        conflict_file = self.file_ops.create_clash_file(
+                        conflict_file_left = self.file_ops.create_clash_file(
                             str(left_path), username=self.username
                         )
                         self.file_ops.copy_file(str(right_path), str(left_path))
+                        # Copy conflict file to right so both sides have both versions
+                        conflict_file_right = str(
+                            Path(self.config.right_root)
+                            / Path(conflict_file_left).name
+                        )
+                        self.file_ops.copy_file(conflict_file_left, conflict_file_right)
                         logger.info(
                             f"[CONFLICT] {job.file_path}: "
-                            f"older version saved as {conflict_file}"
+                            f"older version saved as {Path(conflict_file_left).name} "
+                            "on both sides"
                         )
 
                     # Record conflict alert
