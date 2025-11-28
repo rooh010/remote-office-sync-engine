@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -355,6 +355,22 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 12 FAILED - directory not synced" $false
+    }
+}
+
+# Test 13: Empty directory creation from right to left
+$totalTests++
+Write-TestHeader "Empty directory creation R->L" 13
+$newDirRight = New-Item -ItemType Directory -Path "$rightTestDir\emptydir_from_right" -Force
+if (Invoke-Sync) {
+    $leftDirExists = Test-Path -LiteralPath "$leftTestDir\emptydir_from_right" -PathType Container
+    Write-Result "Empty directory exists on left" $leftDirExists
+    if ($leftDirExists) {
+        $passedTests++
+        Write-Result "Test 13 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 13 FAILED" $false
     }
 }
 
