@@ -310,17 +310,19 @@ class SyncRunner:
                 self.file_ops.copy_file(str(newer_path), str(right_path))
 
                 # Mirror conflict file to the opposite side so both ends keep the older version
-                conflict_name = Path(conflict_file_path).name
+                # Preserve directory structure by using the file's relative path
+                file_dir = Path(job.file_path).parent
+                conflict_filename = Path(conflict_file_path).name
                 twin_conflict = (
-                    Path(self.config.left_root) / conflict_name
+                    Path(self.config.left_root) / file_dir / conflict_filename
                     if older_path == right_path
-                    else Path(self.config.right_root) / conflict_name
+                    else Path(self.config.right_root) / file_dir / conflict_filename
                 )
                 self.file_ops.copy_file(conflict_file_path, str(twin_conflict))
 
                 logger.info(
                     f"[CONFLICT] {job.file_path}: older version saved as "
-                    f"{conflict_name} on both sides"
+                    f"{conflict_filename} on both sides"
                 )
 
                 self.conflict_alerts.append(

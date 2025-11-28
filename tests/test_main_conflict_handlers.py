@@ -136,3 +136,53 @@ def test_case_conflict_keeps_newer_casing_and_conflict_artifacts(runner):
 
     assert instance.content_conflicts_detected is False
     assert instance.conflict_alerts, "Case conflict should emit alert metadata"
+
+
+def test_clash_create_preserves_directory_structure(runner):
+    """CLASH_CREATE should place conflict files in same directory as original files."""
+    instance, left_root, right_root = runner
+
+    # Create subdirectories and files
+    left_subdir = left_root / "subdir" / "nested"
+    right_subdir = right_root / "subdir" / "nested"
+    left_subdir.mkdir(parents=True)
+    right_subdir.mkdir(parents=True)
+
+    left_file = left_subdir / "conflict.txt"
+    right_file = right_subdir / "conflict.txt"
+
+    left_file.write_text("newer-left")
+    right_file.write_text("older-right")
+
+    newer_ts = 1_700_000_100
+    older_ts = newer_ts - 100
+    os.utime(left_file, (newer_ts, newer_ts))
+    os.utime(right_file, (older_ts, older_ts))
+
+    job = SimpleNamespace(
+        action=SyncAction.CLASH_CREATE,
+        file_path="subdir/nested/conflict.txt",
+        details="modify",
+    )
+
+    assert instance._execute_job(job) is True
+
+    # Main files should have newer content
+    assert left_file.read_text() == "newer-left"
+    assert right_file.read_text() == "newer-left"
+
+    # Conflict files should be in the SAME subdirectory, not at root
+    left_conflicts = list(left_subdir.glob("conflict.CONFLICT.UnitTestUser.*.txt"))
+    right_conflicts = list(right_subdir.glob("conflict.CONFLICT.UnitTestUser.*.txt"))
+
+    assert len(left_conflicts) == 1, "Conflict file should exist in left subdirectory"
+    assert len(right_conflicts) == 1, "Conflict file should exist in right subdirectory"
+    assert left_conflicts[0].name == right_conflicts[0].name
+    assert left_conflicts[0].read_text() == "older-right"
+    assert right_conflicts[0].read_text() == "older-right"
+
+    # Verify NO conflicts at root level
+    root_left_conflicts = list(left_root.glob("conflict.CONFLICT*.txt"))
+    root_right_conflicts = list(right_root.glob("conflict.CONFLICT*.txt"))
+    assert len(root_left_conflicts) == 0, "Conflict should not be at root level"
+    assert len(root_right_conflicts) == 0, "Conflict should not be at root level"
