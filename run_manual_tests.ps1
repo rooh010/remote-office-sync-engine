@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -326,6 +326,35 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 11 FAILED" $false
+    }
+}
+
+# Test 12: Directory deletion
+$totalTests++
+Write-TestHeader "Directory deletion" 12
+mkdir -Force "$leftTestDir\delete_me_dir\subdir" | Out-Null
+"File to be deleted" | Set-Content "$leftTestDir\delete_me_dir\subdir\file.txt"
+if (Invoke-Sync) {
+    # Verify directory exists on right
+    $rightDirExists = Test-Path -LiteralPath "$rightTestDir\delete_me_dir\subdir" -PathType Container
+    if ($rightDirExists) {
+        # Now delete the directory from left
+        Remove-Item -LiteralPath "$leftTestDir\delete_me_dir" -Recurse -Force
+        if (Invoke-Sync) {
+            # After sync, the file should be soft-deleted from right
+            # The empty directory structure will remain (only files are deleted)
+            $fileDeleted = -not (Test-Path -LiteralPath "$rightTestDir\delete_me_dir\subdir\file.txt")
+            if ($fileDeleted) {
+                $passedTests++
+                Write-Result "Test 12 PASSED" $true
+            } else {
+                $failedTests++
+                Write-Result "Test 12 FAILED" $false
+            }
+        }
+    } else {
+        $failedTests++
+        Write-Result "Test 12 FAILED - directory not synced" $false
     }
 }
 

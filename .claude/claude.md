@@ -100,7 +100,7 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
-- Runs all 11 test cases
+- Runs all 12 test cases
 - Reports pass/fail for each test
 - Cleans up test files
 
@@ -130,6 +130,7 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected **AND conflict file exists on both sides with correct content**
 10. **Case Change:** Rename file changing case → verify case conflict handled correctly
 11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved **and content matches**
+12. **Directory Deletion:** Create directory with files on both sides → delete directory from one side → sync → verify files deleted from other side
 
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**
