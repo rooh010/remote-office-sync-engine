@@ -1,12 +1,12 @@
 """Conflict detection and resolution."""
 
+import hashlib
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
 
 from remote_office_sync.logging_setup import get_logger
 from remote_office_sync.scanner import FileMetadata
-import hashlib
 
 logger = get_logger()
 
@@ -118,7 +118,8 @@ class ConflictDetector:
                 and not self._is_same_content(curr_metadata)
             ):
                 logger.debug(
-                    f"Content divergence detected for {path} with stable mtimes/sizes; treating as modify-modify"
+                    f"Content divergence detected for {path} with stable "
+                    "mtimes/sizes; treating as modify-modify"
                 )
                 conflicts[path] = (ConflictType.MODIFY_MODIFY, prev_metadata, curr_metadata)
 

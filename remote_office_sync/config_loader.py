@@ -210,7 +210,7 @@ def load_config(config_path: str) -> Config:
         error_msg += "To create your config file:\n"
 
         if template_path.exists():
-            error_msg += f"1. Copy the template: copy config.template.yaml config.yaml\n"
+            error_msg += "1. Copy the template: copy config.template.yaml config.yaml\n"
         else:
             error_msg += "1. Download config.template.yaml from the repository\n"
             error_msg += "2. Copy it to config.yaml\n"

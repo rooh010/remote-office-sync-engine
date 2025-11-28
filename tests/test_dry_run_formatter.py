@@ -28,8 +28,8 @@ def test_format_copy_jobs():
     assert "2 operations would be performed" in output
     assert "test.txt" in output
     assert "doc.pdf" in output
-    assert "→" in output  # Left to right arrow
-    assert "←" in output  # Right to left arrow
+    assert "->" in output  # Left to right arrow
+    assert "<-" in output  # Right to left arrow
 
 
 def test_format_delete_jobs():
@@ -71,7 +71,7 @@ def test_grouping_by_action():
     output = formatter.format_dry_run_output(jobs)
 
     assert "Summary by Action" in output
-    assert "Copy LEFT → RIGHT: 2 files" in output
+    assert "Copy LEFT -> RIGHT: 2 files" in output
     assert "Soft delete from LEFT: 1 files" in output
 
 

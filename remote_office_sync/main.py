@@ -155,7 +155,9 @@ class SyncRunner:
         def _safe_preview(path: Path) -> str:
             try:
                 raw = path.read_bytes()[:50]
-                return raw.decode(errors="replace").encode("unicode_escape").decode("ascii", "replace")
+                return (
+                    raw.decode(errors="replace").encode("unicode_escape").decode("ascii", "replace")
+                )
             except (OSError, IOError):
                 return "<unreadable>"
 
@@ -317,7 +319,7 @@ class SyncRunner:
                 right_case_path = Path(self.config.right_root) / job.src_path
 
                 # DEBUG: Check file states at the START of handler
-                logger.debug(f"=== CASE_CONFLICT handler START ===")
+                logger.debug("=== CASE_CONFLICT handler START ===")
                 logger.debug(f"Left path: {left_case_path}, exists: {left_case_path.exists()}")
                 logger.debug(f"Right path: {right_case_path}, exists: {right_case_path.exists()}")
 
@@ -330,7 +332,9 @@ class SyncRunner:
                             return
                         desired.parent.mkdir(parents=True, exist_ok=True)
                         # On case-insensitive FS a direct rename may no-op; hop through a temp.
-                        temp = desired.with_name(f"{desired.stem}.case_tmp.{uuid.uuid4().hex}{desired.suffix}")
+                        temp = desired.with_name(
+                            f"{desired.stem}.case_tmp.{uuid.uuid4().hex}{desired.suffix}"
+                        )
                         existing.rename(temp)
                         temp.rename(desired)
                         logger.debug(f"Renamed for casing: {existing} -> {desired}")
@@ -340,16 +344,22 @@ class SyncRunner:
                 def _safe_content_preview(path: Path) -> str:
                     try:
                         raw = path.read_bytes()[:50]
-                        return raw.decode(errors="replace").encode("unicode_escape").decode(
-                            "ascii", "replace"
+                        return (
+                            raw.decode(errors="replace")
+                            .encode("unicode_escape")
+                            .decode("ascii", "replace")
                         )
                     except (OSError, IOError):
                         return "<unreadable>"
 
                 if left_case_path.exists():
-                    logger.debug(f"Left content (first 50): {_safe_content_preview(left_case_path)}")
+                    logger.debug(
+                        f"Left content (first 50): {_safe_content_preview(left_case_path)}"
+                    )
                 if right_case_path.exists():
-                    logger.debug(f"Right content (first 50): {_safe_content_preview(right_case_path)}")
+                    logger.debug(
+                        f"Right content (first 50): {_safe_content_preview(right_case_path)}"
+                    )
 
                 try:
                     payload = getattr(job, "payload", None) or {}
@@ -359,12 +369,15 @@ class SyncRunner:
                     right_mtime = payload.get("right_mtime")
                     left_bytes = payload.get("left_bytes")
                     right_bytes = payload.get("right_bytes")
-                    prev_path = payload.get("prev_path")
 
                     if left_mtime is None:
-                        left_mtime = left_case_path.stat().st_mtime if left_case_path.exists() else 0
+                        left_mtime = (
+                            left_case_path.stat().st_mtime if left_case_path.exists() else 0
+                        )
                     if right_mtime is None:
-                        right_mtime = right_case_path.stat().st_mtime if right_case_path.exists() else 0
+                        right_mtime = (
+                            right_case_path.stat().st_mtime if right_case_path.exists() else 0
+                        )
 
                     logger.debug(
                         f"CASE_CONFLICT snapshot mtimes - left: {left_mtime}, right: {right_mtime}"
@@ -382,7 +395,6 @@ class SyncRunner:
                             return None
 
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    conflict_from_left = False
 
                     # Name conflict file using the older variant's casing by default (updated below)
                     conflict_stem = left_case_path.stem
@@ -402,7 +414,8 @@ class SyncRunner:
                         older_bytes = _resolve_bytes(right_case_path, right_bytes)
                         if older_bytes is None:
                             raise FileOpsError(
-                                f"Missing older content for case conflict (right): {right_case_path}"
+                                f"Missing older content for case conflict "
+                                f"(right): {right_case_path}"
                             )
 
                         older_mtime = right_mtime
@@ -413,7 +426,8 @@ class SyncRunner:
                         _force_case_rename(right_case_path, right_unified)
 
                         log_message = (
-                            f"[CASE_CONFLICT] {job.file_path}: left newer (kept), conflict from right"
+                            f"[CASE_CONFLICT] {job.file_path}: "
+                            "left newer (kept), conflict from right"
                         )
                     else:
                         # Right is newer - conflict file from left (older)
@@ -427,8 +441,12 @@ class SyncRunner:
 
                         older_mtime = left_mtime
 
-                        left_unified = Path(self.config.left_root) / job.src_path  # Use right's case
-                        right_unified = Path(self.config.right_root) / job.src_path  # Use right's case
+                        left_unified = (
+                            Path(self.config.left_root) / job.src_path
+                        )  # Use right's case
+                        right_unified = (
+                            Path(self.config.right_root) / job.src_path
+                        )  # Use right's case
                         self.file_ops.copy_file(str(right_case_path), str(left_unified))
                         if str(right_case_path) != str(right_unified):
                             self.file_ops.copy_file(str(right_case_path), str(right_unified))
@@ -437,10 +455,13 @@ class SyncRunner:
                         _force_case_rename(right_case_path, right_unified)
 
                         log_message = (
-                            f"[CASE_CONFLICT] {job.src_path}: right newer (kept), conflict from left"
+                            f"[CASE_CONFLICT] {job.src_path}: "
+                            "right newer (kept), conflict from left"
                         )
 
-                    conflict_name = f"{conflict_stem}.CONFLICT.{self.username}.{timestamp}{conflict_suffix}"
+                    conflict_name = (
+                        f"{conflict_stem}.CONFLICT.{self.username}.{timestamp}{conflict_suffix}"
+                    )
                     left_conflict = Path(self.config.left_root) / conflict_name
                     right_conflict = Path(self.config.right_root) / conflict_name
                     left_conflict.parent.mkdir(parents=True, exist_ok=True)
@@ -463,11 +484,17 @@ class SyncRunner:
                             conflict_type="case_conflict",
                             left_mtime=left_mtime,
                             right_mtime=right_mtime,
-                            left_size=left_case_path.stat().st_size if left_case_path.exists() else None,
-                            right_size=right_case_path.stat().st_size if right_case_path.exists() else None,
+                            left_size=(
+                                left_case_path.stat().st_size if left_case_path.exists() else None
+                            ),
+                            right_size=(
+                                right_case_path.stat().st_size if right_case_path.exists() else None
+                            ),
                         )
                     )
-                    self.content_conflicts_detected = False  # Don't need second sync for case conflicts
+                    self.content_conflicts_detected = (
+                        False  # Don't need second sync for case conflicts
+                    )
 
                 except (OSError, IOError, FileOpsError) as e:
                     logger.error(f"Failed to handle case conflict for {job.file_path}: {e}")

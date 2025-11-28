@@ -2,10 +2,11 @@
 
 import tempfile
 from pathlib import Path
+
+from remote_office_sync.config_loader import Config
 from remote_office_sync.scanner import Scanner
 from remote_office_sync.state_db import StateDB
-from remote_office_sync.sync_logic import SyncEngine, SyncAction
-from remote_office_sync.config_loader import Config
+from remote_office_sync.sync_logic import SyncAction, SyncEngine
 
 
 def test_normal_deletion():
@@ -19,11 +20,13 @@ def test_normal_deletion():
 
         db_path = tmppath / "test.db"
 
-        config = Config({
-            "left_root": str(left_dir),
-            "right_root": str(right_dir),
-            "soft_delete": {"enabled": False}
-        })
+        config = Config(
+            {
+                "left_root": str(left_dir),
+                "right_root": str(right_dir),
+                "soft_delete": {"enabled": False},
+            }
+        )
 
         # Step 1: Create normal.txt on both sides
         (left_dir / "normal.txt").write_text("content")
@@ -81,7 +84,9 @@ def test_normal_deletion():
             print(f"{job.action.value}: {job.file_path} - {job.details}")
 
         # Check if deletion is properly synced
-        delete_jobs = [j for j in jobs if j.action == SyncAction.DELETE_RIGHT and j.file_path == "normal.txt"]
+        delete_jobs = [
+            j for j in jobs if j.action == SyncAction.DELETE_RIGHT and j.file_path == "normal.txt"
+        ]
 
         if delete_jobs:
             print("\n✓ SUCCESS: Found DELETE_RIGHT job for normal.txt")

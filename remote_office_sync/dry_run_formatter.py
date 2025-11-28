@@ -13,25 +13,25 @@ class DryRunFormatter:
 
     # Action symbols and descriptions
     ACTION_SYMBOLS = {
-        SyncAction.COPY_LEFT_TO_RIGHT: "→",
-        SyncAction.COPY_RIGHT_TO_LEFT: "←",
-        SyncAction.DELETE_LEFT: "✗",
-        SyncAction.DELETE_RIGHT: "✗",
-        SyncAction.SOFT_DELETE_LEFT: "⊗",
-        SyncAction.SOFT_DELETE_RIGHT: "⊗",
-        SyncAction.CLASH_CREATE: "⚠",
-        SyncAction.RENAME_LEFT: "⟲",
-        SyncAction.RENAME_RIGHT: "⟲",
-        SyncAction.RENAME_CONFLICT: "🔀",
-        SyncAction.CREATE_DIR_LEFT: "📁",
-        SyncAction.CREATE_DIR_RIGHT: "📁",
-        SyncAction.DELETE_DIR_LEFT: "🗑",
-        SyncAction.DELETE_DIR_RIGHT: "🗑",
+        SyncAction.COPY_LEFT_TO_RIGHT: "->",
+        SyncAction.COPY_RIGHT_TO_LEFT: "<-",
+        SyncAction.DELETE_LEFT: "[X]",
+        SyncAction.DELETE_RIGHT: "[X]",
+        SyncAction.SOFT_DELETE_LEFT: "[~]",
+        SyncAction.SOFT_DELETE_RIGHT: "[~]",
+        SyncAction.CLASH_CREATE: "[!]",
+        SyncAction.RENAME_LEFT: "[R]",
+        SyncAction.RENAME_RIGHT: "[R]",
+        SyncAction.RENAME_CONFLICT: "[R!]",
+        SyncAction.CREATE_DIR_LEFT: "[+D]",
+        SyncAction.CREATE_DIR_RIGHT: "[+D]",
+        SyncAction.DELETE_DIR_LEFT: "[-D]",
+        SyncAction.DELETE_DIR_RIGHT: "[-D]",
     }
 
     ACTION_DESCRIPTIONS = {
-        SyncAction.COPY_LEFT_TO_RIGHT: "Copy LEFT → RIGHT",
-        SyncAction.COPY_RIGHT_TO_LEFT: "Copy RIGHT → LEFT",
+        SyncAction.COPY_LEFT_TO_RIGHT: "Copy LEFT -> RIGHT",
+        SyncAction.COPY_RIGHT_TO_LEFT: "Copy RIGHT -> LEFT",
         SyncAction.DELETE_LEFT: "Delete from LEFT",
         SyncAction.DELETE_RIGHT: "Delete from RIGHT",
         SyncAction.SOFT_DELETE_LEFT: "Soft delete from LEFT",
@@ -195,7 +195,7 @@ class DryRunFormatter:
         output.append("DRY RUN MODE - NO CHANGES WILL BE MADE")
         output.append("=" * 80)
         output.append("")
-        output.append("✓ No synchronization needed - all files are already in sync!")
+        output.append("[OK] No synchronization needed - all files are already in sync!")
         output.append("")
         output.append("=" * 80)
         return "\n".join(output)

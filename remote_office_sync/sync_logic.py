@@ -75,7 +75,8 @@ class SyncEngine:
             left_root=config.left_root,
             right_root=config.right_root,
         )
-        # Cache bytes for case-variant paths so we can preserve older content even if overwritten later
+        # Cache bytes for case-variant paths so we can preserve older content
+        # even if overwritten later
         self.case_snapshot: Dict[str, Optional[bytes]] = {}
 
     def generate_sync_jobs(self) -> List[SyncJob]:
@@ -88,7 +89,8 @@ class SyncEngine:
         processed = set()
 
         # Prime snapshot cache for any paths that had case variants previously.
-        # This is best-effort: grab bytes before scanning current state to avoid external overwrites.
+        # This is best-effort: grab bytes before scanning current state to avoid
+        # external overwrites.
         for prev_path in self.previous_state.keys():
             for other in self.previous_state.keys():
                 if prev_path != other and prev_path.lower() == other.lower():
@@ -112,7 +114,10 @@ class SyncEngine:
             # Also add lowercase version to catch any merged entries
             processed.add(left_case.lower())
             processed.add(right_case.lower())
-            logger.debug(f"Added to processed: {prev_path}, {left_case}, {right_case}, {left_case.lower()}, {right_case.lower()}")
+            logger.debug(
+                f"Added to processed: {prev_path}, {left_case}, {right_case}, "
+                f"{left_case.lower()}, {right_case.lower()}"
+            )
             # Treat as a rename conflict with different case changes
             jobs.extend(self._handle_case_conflict(prev_path, left_case, right_case))
 
@@ -208,7 +213,10 @@ class SyncEngine:
 
         logger.info(f"Generated {len(jobs)} sync jobs")
         for job in jobs:
-            logger.debug(f"Job: action={job.action.value}, file_path={job.file_path}, src_path={job.src_path}")
+            logger.debug(
+                f"Job: action={job.action.value}, file_path={job.file_path}, "
+                f"src_path={job.src_path}"
+            )
         return jobs
 
     def _detect_renames(self) -> tuple[Dict[str, str], Dict[str, tuple[str, str]]]:
@@ -504,8 +512,7 @@ class SyncEngine:
         jobs = []
 
         logger.warning(
-            f"Handling case conflict: {prev_path} -> "
-            f"{left_case} (left) vs {right_case} (right)"
+            f"Handling case conflict: {prev_path} -> " f"{left_case} (left) vs {right_case} (right)"
         )
 
         left_path = Path(self.config.left_root) / left_case
@@ -531,18 +538,22 @@ class SyncEngine:
         job = SyncJob(
             action=SyncAction.CASE_CONFLICT,
             file_path=left_case,  # Left case (canonical path)
-            src_path=right_case,   # Right case (variant path)
+            src_path=right_case,  # Right case (variant path)
             details=f"Case conflict: {left_case} (left) vs {right_case} (right)",
             payload={
                 "prev_path": prev_path,
                 "left_mtime": left_mtime,
                 "right_mtime": right_mtime,
-                "left_bytes": left_bytes_snapshot
-                if left_bytes_snapshot is not None
-                else self._safe_read_bytes(left_path),
-                "right_bytes": right_bytes_snapshot
-                if right_bytes_snapshot is not None
-                else self._safe_read_bytes(right_path),
+                "left_bytes": (
+                    left_bytes_snapshot
+                    if left_bytes_snapshot is not None
+                    else self._safe_read_bytes(left_path)
+                ),
+                "right_bytes": (
+                    right_bytes_snapshot
+                    if right_bytes_snapshot is not None
+                    else self._safe_read_bytes(right_path)
+                ),
             },
         )
         logger.debug(f"Creating CASE_CONFLICT job: {job}")

@@ -1,12 +1,12 @@
 """Test for deletion handling after case conflicts are created."""
 
 import tempfile
-import shutil
 from pathlib import Path
+
+from remote_office_sync.config_loader import Config
 from remote_office_sync.scanner import Scanner
 from remote_office_sync.state_db import StateDB
-from remote_office_sync.sync_logic import SyncEngine, SyncAction
-from remote_office_sync.config_loader import Config
+from remote_office_sync.sync_logic import SyncAction, SyncEngine
 
 
 def test_deletion_after_case_conflict():
@@ -22,18 +22,18 @@ def test_deletion_after_case_conflict():
         db_path = tmppath / "test.db"
 
         # Create config
-        config = Config({
-            "left_root": str(left_dir),
-            "right_root": str(right_dir),
-            "conflict_policy": {
-                "modify_modify": "clash",
-                "new_new": "clash",
-                "metadata_conflict": "notify_only"
-            },
-            "soft_delete": {
-                "enabled": False
+        config = Config(
+            {
+                "left_root": str(left_dir),
+                "right_root": str(right_dir),
+                "conflict_policy": {
+                    "modify_modify": "clash",
+                    "new_new": "clash",
+                    "metadata_conflict": "notify_only",
+                },
+                "soft_delete": {"enabled": False},
             }
-        })
+        )
 
         # Step 1: Create test.txt on left, Test.txt on right
         (left_dir / "test.txt").write_text("content from left")
@@ -110,7 +110,9 @@ def test_deletion_after_case_conflict():
             print(f"  In previous_state: {path in previous_state}")
 
         # Check if deletion is properly synced
-        delete_jobs = [j for j in jobs if j.action == SyncAction.DELETE_LEFT and j.file_path == "test.txt"]
+        delete_jobs = [
+            j for j in jobs if j.action == SyncAction.DELETE_LEFT and j.file_path == "test.txt"
+        ]
 
         if delete_jobs:
             print("\n✓ SUCCESS: Found DELETE_LEFT job for test.txt")
