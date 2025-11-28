@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -487,6 +487,41 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 15 FAILED" $false
+    }
+}
+
+# Test 16: Case conflict in subdirectory (verify conflict files go to subdir, not root)
+$totalTests++
+Write-TestHeader "Case conflict in subdirectory" 16
+$caseconflictDir = New-Item -ItemType Directory -Path "$leftTestDir\caseconflict_test\docs" -Force
+"Original file content" | Set-Content "$leftTestDir\caseconflict_test\docs\document.txt"
+Invoke-Sync | Out-Null
+Start-Sleep -Milliseconds 100
+# Create case conflict: rename one side to different case
+Rename-Item -LiteralPath "$rightTestDir\caseconflict_test\docs\document.txt" -NewName "Document.txt" -ErrorAction SilentlyContinue
+# Also modify the file
+"Modified content" | Set-Content "$leftTestDir\caseconflict_test\docs\document.txt"
+if (Invoke-Sync) {
+    # Verify conflict files are in the SUBDIRECTORY, not at root
+    # Use wildcard to match any CONFLICT file (document or Document case variant)
+    $conflictInSubdir = Get-ChildItem -LiteralPath "$leftTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+    $conflictAtRoot = Get-ChildItem -LiteralPath $leftTestDir -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+
+    $correctLocation = ($conflictInSubdir.Count -gt 0) -and ($conflictAtRoot.Count -eq 0)
+    Write-Result "Case conflict file in subdirectory (not root)" $correctLocation
+
+    # Also verify on right side
+    $conflictRightSubdir = Get-ChildItem -LiteralPath "$rightTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+    $conflictRightRoot = Get-ChildItem -LiteralPath $rightTestDir -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+    $correctLocationRight = ($conflictRightSubdir.Count -gt 0) -and ($conflictRightRoot.Count -eq 0)
+    Write-Result "Case conflict file in subdirectory on right" $correctLocationRight
+
+    if ($correctLocation -and $correctLocationRight) {
+        $passedTests++
+        Write-Result "Test 16 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 16 FAILED" $false
     }
 }
 
