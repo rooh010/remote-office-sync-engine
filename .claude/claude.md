@@ -91,17 +91,24 @@ Test directories: `C:\pdrive_local\` (left) and `p:\` (right)
 Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 
 #### Core Operations (MUST ALL PASS):
-1. **File Creation L→R:** Create file on left → sync → verify on right
-2. **File Creation R→L:** Create file on right → sync → verify on left
-3. **File Modification L→R:** Modify file on left → sync → verify on right
-4. **File Modification R→L:** Modify file on right → sync → verify on left
+1. **File Creation L→R:** Create file on left → sync → verify on right **and content matches**
+2. **File Creation R→L:** Create file on right → sync → verify on left **and content matches**
+3. **File Modification L→R:** Modify file on left → sync → verify on right **and content matches**
+4. **File Modification R→L:** Modify file on right → sync → verify on left **and content matches**
 5. **File Deletion (Left):** Delete from left → sync → verify deleted from right
 6. **File Deletion (Right):** Delete from right → sync → verify deleted from left
 7. **Directory Sync:** Create directory on one side → sync → verify on other side
-8. **Modify-Modify Conflict:** Modify same file differently on both sides → verify conflict file created **ON BOTH SIDES** (not just one!)
-9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected **AND conflict file exists on both sides**
+8. **Modify-Modify Conflict:** Modify same file differently on both sides → verify conflict file created **ON BOTH SIDES (check content of both main file and conflict file)**
+9. **New-New Conflict:** Create same filename on both sides with different content → verify conflict detected **AND conflict file exists on both sides with correct content**
 10. **Case Change:** Rename file changing case → verify case conflict handled correctly
-11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved
+11. **Subdirectory Files:** Create file in nested subdirectory → sync → verify structure preserved **and content matches**
+
+#### Content Verification (CRITICAL):
+- **ALWAYS verify file content, not just existence!**
+- Use file size comparison as quick check
+- For text files, compare actual content: `diff C:\pdrive_local\file.txt p:\file.txt`
+- For binary files, compare checksums: `Get-FileHash`
+- Verify both the main file AND any conflict files have correct content
 
 #### Deletion Testing (CRITICAL - Previously Broken):
 - **NEVER skip deletion tests** - this was a critical bug that wasn't caught by unit tests
