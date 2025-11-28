@@ -39,13 +39,27 @@ class FileOps:
             FileOpsError: If copy fails
         """
         try:
+            src_path = Path(src)
             dst_path = Path(dst)
+
+            # Skip unnecessary work if source and destination point to same file
+            try:
+                if src_path.resolve() == dst_path.resolve():
+                    logger.debug(f"Skipped copy; source and destination are identical: {src}")
+                    return
+            except OSError:
+                # Fall back to normal copy if resolution fails (e.g., missing parent dirs)
+                pass
 
             # Ensure destination directory exists
             dst_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Copy file
-            shutil.copy2(src, dst) if preserve_mtime else shutil.copy(src, dst)
+            (
+                shutil.copy2(str(src_path), str(dst_path))
+                if preserve_mtime
+                else shutil.copy(str(src_path), str(dst_path))
+            )
 
             # Verify copy
             if not dst_path.exists():

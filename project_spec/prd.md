@@ -660,6 +660,8 @@ Integration with pCloud APIs directly (instead of only via mapped drive) for mor
 
 Automatic cleanup of soft delete folder based on retention and size thresholds.
 
+test suite written in powershell that we can run on a windows machine, often the unit tests are not picking up issues due to windows specific issues
+
 ## 11. Acceptance Criteria
 
 A first version is considered acceptable when:

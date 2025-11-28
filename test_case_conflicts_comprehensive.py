@@ -35,7 +35,7 @@ class CaseConflictTester:
                     except Exception as e:
                         print(f"Warning: Could not delete {f}: {e}")
             # Also clean subdirectories
-            for subdir in ["subdir", "testdir"]:
+            for subdir in ["subdir", "testdir", "manual_test2"]:
                 if (p / subdir).exists():
                     for pattern in patterns:
                         for f in (p / subdir).glob(pattern):

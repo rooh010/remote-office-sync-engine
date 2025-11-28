@@ -276,60 +276,65 @@ class SyncRunner:
 
             elif job.action == SyncAction.CLASH_CREATE:
                 # Create clash file from the older version, keep newer as main
+                # Prefer live filesystem stats to avoid stale DB data; fall back to DB
                 current = self.state_db.load_state().get(job.file_path)
-                if current and current.exists_left and current.exists_right:
-                    left_mtime = current.mtime_left or 0
-                    right_mtime = current.mtime_right or 0
+                left_exists = left_path.exists()
+                right_exists = right_path.exists()
+                left_mtime = (
+                    left_path.stat().st_mtime
+                    if left_exists
+                    else (current.mtime_left if current else 0)
+                )
+                right_mtime = (
+                    right_path.stat().st_mtime
+                    if right_exists
+                    else (current.mtime_right if current else 0)
+                )
 
-                    # Determine which is older and create conflict file from it
-                    if left_mtime > right_mtime:
-                        # Left is newer - create conflict from right (older)
-                        conflict_file_right = self.file_ops.create_clash_file(
-                            str(right_path), username=self.username
-                        )
-                        self.file_ops.copy_file(str(left_path), str(right_path))
-                        # Copy conflict file to left so both sides have both versions
-                        conflict_file_left = str(
-                            Path(self.config.left_root)
-                            / Path(conflict_file_right).name
-                        )
-                        self.file_ops.copy_file(conflict_file_right, conflict_file_left)
-                        logger.info(
-                            f"[CONFLICT] {job.file_path}: "
-                            f"older version saved as {Path(conflict_file_right).name} "
-                            "on both sides"
-                        )
-                    else:
-                        # Right is newer - create conflict from left (older)
-                        conflict_file_left = self.file_ops.create_clash_file(
-                            str(left_path), username=self.username
-                        )
-                        self.file_ops.copy_file(str(right_path), str(left_path))
-                        # Copy conflict file to right so both sides have both versions
-                        conflict_file_right = str(
-                            Path(self.config.right_root)
-                            / Path(conflict_file_left).name
-                        )
-                        self.file_ops.copy_file(conflict_file_left, conflict_file_right)
-                        logger.info(
-                            f"[CONFLICT] {job.file_path}: "
-                            f"older version saved as {Path(conflict_file_left).name} "
-                            "on both sides"
-                        )
-
-                    # Record conflict alert
-                    self.conflict_alerts.append(
-                        ConflictAlert(
-                            file_path=job.file_path,
-                            conflict_type=job.details or "unknown",
-                            left_mtime=current.mtime_left,
-                            right_mtime=current.mtime_right,
-                            left_size=current.size_left,
-                            right_size=current.size_right,
-                        )
+                if not (left_exists and right_exists):
+                    raise FileOpsError(
+                        "Conflict requires both sides to exist: "
+                        f"left={left_exists}, right={right_exists}"
                     )
-                    # Mark that we have a content conflict needing a second sync
-                    self.content_conflicts_detected = True
+
+                # Determine which side is newer; on tie keep left to remain deterministic
+                left_is_newer = left_mtime >= right_mtime
+                older_path = right_path if left_is_newer else left_path
+                newer_path = left_path if left_is_newer else right_path
+
+                conflict_file_path = self.file_ops.create_clash_file(
+                    str(older_path), username=self.username
+                )
+                # Copy newer content to both sides to guarantee main file exists after conflict
+                self.file_ops.copy_file(str(newer_path), str(left_path))
+                self.file_ops.copy_file(str(newer_path), str(right_path))
+
+                # Mirror conflict file to the opposite side so both ends keep the older version
+                conflict_name = Path(conflict_file_path).name
+                twin_conflict = (
+                    Path(self.config.left_root) / conflict_name
+                    if older_path == right_path
+                    else Path(self.config.right_root) / conflict_name
+                )
+                self.file_ops.copy_file(conflict_file_path, str(twin_conflict))
+
+                logger.info(
+                    f"[CONFLICT] {job.file_path}: older version saved as "
+                    f"{conflict_name} on both sides"
+                )
+
+                self.conflict_alerts.append(
+                    ConflictAlert(
+                        file_path=job.file_path,
+                        conflict_type=job.details or "unknown",
+                        left_mtime=left_mtime,
+                        right_mtime=right_mtime,
+                        left_size=current.size_left if current else left_path.stat().st_size,
+                        right_size=current.size_right if current else right_path.stat().st_size,
+                    )
+                )
+                # Mark that we have a content conflict needing a second sync
+                self.content_conflicts_detected = True
 
             elif job.action == SyncAction.CASE_CONFLICT:
                 # Handle case conflict: different cases on each side

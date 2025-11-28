@@ -23,7 +23,8 @@ class StateDB:
 
     def _init_db(self) -> None:
         """Initialize database schema."""
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS files (
@@ -39,6 +40,8 @@ class StateDB:
             )
             conn.commit()
             logger.info(f"Initialized state database at {self.db_path}")
+        finally:
+            conn.close()
 
     def load_state(self) -> Dict[str, FileMetadata]:
         """Load previous state from database.
@@ -48,33 +51,37 @@ class StateDB:
         """
         result = {}
 
+        conn = None
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("SELECT * FROM files")
-                for row in cursor.fetchall():
-                    (
-                        path,
-                        exists_left,
-                        exists_right,
-                        mtime_left,
-                        mtime_right,
-                        size_left,
-                        size_right,
-                    ) = row
-                    metadata = FileMetadata(
-                        relative_path=path,
-                        exists_left=bool(exists_left),
-                        exists_right=bool(exists_right),
-                        mtime_left=mtime_left,
-                        mtime_right=mtime_right,
-                        size_left=size_left,
-                        size_right=size_right,
-                    )
-                    result[path] = metadata
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.execute("SELECT * FROM files")
+            for row in cursor.fetchall():
+                (
+                    path,
+                    exists_left,
+                    exists_right,
+                    mtime_left,
+                    mtime_right,
+                    size_left,
+                    size_right,
+                ) = row
+                metadata = FileMetadata(
+                    relative_path=path,
+                    exists_left=bool(exists_left),
+                    exists_right=bool(exists_right),
+                    mtime_left=mtime_left,
+                    mtime_right=mtime_right,
+                    size_left=size_left,
+                    size_right=size_right,
+                )
+                result[path] = metadata
 
             logger.info(f"Loaded state for {len(result)} files from database")
         except sqlite3.Error as e:
             logger.warning(f"Error loading state from database: {e}")
+        finally:
+            if conn:
+                conn.close()
 
         return result
 
@@ -84,36 +91,40 @@ class StateDB:
         Args:
             state: Dict mapping relative path to FileMetadata
         """
+        conn = None
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("DELETE FROM files")
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("DELETE FROM files")
 
-                data = [
-                    (
-                        metadata.relative_path,
-                        int(metadata.exists_left),
-                        int(metadata.exists_right),
-                        metadata.mtime_left,
-                        metadata.mtime_right,
-                        metadata.size_left,
-                        metadata.size_right,
-                    )
-                    for metadata in state.values()
-                ]
+            data = [
+                (
+                    metadata.relative_path,
+                    int(metadata.exists_left),
+                    int(metadata.exists_right),
+                    metadata.mtime_left,
+                    metadata.mtime_right,
+                    metadata.size_left,
+                    metadata.size_right,
+                )
+                for metadata in state.values()
+            ]
 
-                sql = """
-                    INSERT INTO files
-                    (path, exists_left, exists_right, mtime_left,
-                     mtime_right, size_left, size_right)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """
-                conn.executemany(sql, data)
-                conn.commit()
+            sql = """
+                INSERT INTO files
+                (path, exists_left, exists_right, mtime_left,
+                 mtime_right, size_left, size_right)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+            conn.executemany(sql, data)
+            conn.commit()
 
             logger.info(f"Saved state for {len(state)} files to database")
         except sqlite3.Error as e:
             logger.error(f"Error saving state to database: {e}")
             raise
+        finally:
+            if conn:
+                conn.close()
 
     def get_file_state(self, path: str) -> Optional[FileMetadata]:
         """Get state for a specific file.
@@ -124,42 +135,50 @@ class StateDB:
         Returns:
             FileMetadata if found, None otherwise
         """
+        conn = None
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("SELECT * FROM files WHERE path = ?", (path,))
-                row = cursor.fetchone()
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.execute("SELECT * FROM files WHERE path = ?", (path,))
+            row = cursor.fetchone()
 
-                if row:
-                    (
-                        path,
-                        exists_left,
-                        exists_right,
-                        mtime_left,
-                        mtime_right,
-                        size_left,
-                        size_right,
-                    ) = row
-                    return FileMetadata(
-                        relative_path=path,
-                        exists_left=bool(exists_left),
-                        exists_right=bool(exists_right),
-                        mtime_left=mtime_left,
-                        mtime_right=mtime_right,
-                        size_left=size_left,
-                        size_right=size_right,
-                    )
+            if row:
+                (
+                    path,
+                    exists_left,
+                    exists_right,
+                    mtime_left,
+                    mtime_right,
+                    size_left,
+                    size_right,
+                ) = row
+                return FileMetadata(
+                    relative_path=path,
+                    exists_left=bool(exists_left),
+                    exists_right=bool(exists_right),
+                    mtime_left=mtime_left,
+                    mtime_right=mtime_right,
+                    size_left=size_left,
+                    size_right=size_right,
+                )
         except sqlite3.Error as e:
             logger.warning(f"Error getting file state: {e}")
+        finally:
+            if conn:
+                conn.close()
 
         return None
 
     def clear_state(self) -> None:
         """Clear all state from database."""
+        conn = None
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("DELETE FROM files")
-                conn.commit()
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("DELETE FROM files")
+            conn.commit()
             logger.info("Cleared all state from database")
         except sqlite3.Error as e:
             logger.error(f"Error clearing state: {e}")
             raise
+        finally:
+            if conn:
+                conn.close()
