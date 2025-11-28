@@ -728,6 +728,43 @@ class SyncEngine:
 
         # Handle directories
         if curr_metadata.is_directory():
+            # Check if this directory was deleted from one side
+            if prev_metadata and prev_metadata.is_directory():
+                # Directory existed before - check if it was deleted from one side
+                if prev_metadata.exists_left and prev_metadata.exists_right:
+                    # Directory existed on both sides before
+                    if not curr_metadata.exists_left:
+                        # Deleted from left -> delete from right
+                        jobs.append(
+                            SyncJob(
+                                action=SyncAction.DELETE_DIR_RIGHT,
+                                file_path=file_path,
+                                details="Directory deleted from left",
+                            )
+                        )
+                        return jobs
+                    elif not curr_metadata.exists_right:
+                        # Deleted from right -> delete from left
+                        jobs.append(
+                            SyncJob(
+                                action=SyncAction.DELETE_DIR_LEFT,
+                                file_path=file_path,
+                                details="Directory deleted from right",
+                            )
+                        )
+                        return jobs
+                elif prev_metadata.exists_left and not prev_metadata.exists_right:
+                    # Directory was only on left before -> no special handling
+                    if not curr_metadata.exists_left:
+                        # It's been deleted from left, nothing to sync
+                        return jobs
+                elif prev_metadata.exists_right and not prev_metadata.exists_left:
+                    # Directory was only on right before -> no special handling
+                    if not curr_metadata.exists_right:
+                        # It's been deleted from right, nothing to sync
+                        return jobs
+
+            # New directories - only on one side
             # Empty directory only on left -> create on right
             if curr_metadata.exists_left and not curr_metadata.exists_right:
                 jobs.append(
