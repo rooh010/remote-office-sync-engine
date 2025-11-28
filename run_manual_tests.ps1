@@ -493,6 +493,9 @@ if (Invoke-Sync) {
 # Test 16: Case conflict in subdirectory (verify conflict files go to subdir, not root)
 $totalTests++
 Write-TestHeader "Case conflict in subdirectory" 16
+# Clean up leftover files from previous tests before running Test 16
+Cleanup-TestDirectories
+New-Item -ItemType Directory -Path "$leftTestDir" -Force | Out-Null
 $caseconflictDir = New-Item -ItemType Directory -Path "$leftTestDir\caseconflict_test\docs" -Force
 "Original file content" | Set-Content "$leftTestDir\caseconflict_test\docs\document.txt"
 Invoke-Sync | Out-Null
@@ -504,15 +507,17 @@ Rename-Item -LiteralPath "$rightTestDir\caseconflict_test\docs\document.txt" -Ne
 if (Invoke-Sync) {
     # Verify conflict files are in the SUBDIRECTORY, not at root
     # Use wildcard to match any CONFLICT file (document or Document case variant)
-    $conflictInSubdir = Get-ChildItem -LiteralPath "$leftTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
-    $conflictAtRoot = Get-ChildItem -LiteralPath $leftTestDir -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+    # Use -File to match only files, not directories (caseconflict_test dir contains "conflict")
+    $conflictInSubdir = Get-ChildItem -LiteralPath "$leftTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -File -ErrorAction SilentlyContinue
+    $conflictAtRoot = Get-ChildItem -LiteralPath $leftTestDir -Filter "*CONFLICT*" -File -Depth 1 -ErrorAction SilentlyContinue
 
     $correctLocation = ($conflictInSubdir.Count -gt 0) -and ($conflictAtRoot.Count -eq 0)
     Write-Result "Case conflict file in subdirectory (not root)" $correctLocation
 
     # Also verify on right side
-    $conflictRightSubdir = Get-ChildItem -LiteralPath "$rightTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
-    $conflictRightRoot = Get-ChildItem -LiteralPath $rightTestDir -Filter "*CONFLICT*" -ErrorAction SilentlyContinue
+    $conflictRightSubdir = Get-ChildItem -LiteralPath "$rightTestDir\caseconflict_test\docs" -Filter "*CONFLICT*" -File -ErrorAction SilentlyContinue
+    $conflictRightRoot = Get-ChildItem -LiteralPath $rightTestDir -Filter "*CONFLICT*" -File -Depth 1 -ErrorAction SilentlyContinue
+
     $correctLocationRight = ($conflictRightSubdir.Count -gt 0) -and ($conflictRightRoot.Count -eq 0)
     Write-Result "Case conflict file in subdirectory on right" $correctLocationRight
 
