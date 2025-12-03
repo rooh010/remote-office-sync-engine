@@ -125,6 +125,9 @@ The project includes a comprehensive manual test suite that validates all sync s
 ```
 The script builds a temporary config (`config.manualtest.tmp.yaml`) using the paths you pass in and forces `dry_run: false`; your real `config.yaml` is never modified.
 
+You can also run the manual suite in CI on a free GitHub Actions Windows runner using temp folders via `.github/workflows/manual-tests.yml` (trigger with `workflow_dispatch`).
+The workflow fails if any manual test fails.
+
 **The 17 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
