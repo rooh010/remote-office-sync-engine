@@ -114,6 +114,10 @@ if (-not (Test-Path -LiteralPath $RightPath)) {
     exit 1
 }
 
+# Reset sync state for isolated test runs
+Remove-Item -LiteralPath "sync_state.db" -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".deleted" -Recurse -Force -ErrorAction SilentlyContinue
+
 # Build a temporary config using provided paths (without touching config.yaml)
 Write-Host "`nConfiguring sync for testing..." -ForegroundColor $InfoColor
 $TempConfigPath = Join-Path $PSScriptRoot "config.manualtest.tmp.yaml"
@@ -942,6 +946,71 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 25 FAILED - Case mismatch: left=$leftCase, right=$rightCase" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Reset state before case-conflict canonical test to avoid prior runs influencing detection
+Remove-Item -LiteralPath "sync_state.db" -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".deleted" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 26: Case conflict preserves newer content and creates conflict artifacts
+$totalTests++
+Write-TestHeader "Case conflict keeps newer content and conflict copies" 26
+$test_name = "case_conflict_canonical"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path $test_left -Force | Out-Null
+New-Item -ItemType Directory -Path $test_right -Force | Out-Null
+
+$leftFile = "$test_left\CaseTest.txt"
+$rightFile = "$test_right\casetest.txt"
+"older-left-case" | Set-Content $leftFile
+"NEW-RIGHT-CONTENT" | Set-Content $rightFile
+
+# Ensure right side is newer than left for tie-breaking
+(Get-Item $leftFile).LastWriteTime = (Get-Date).AddSeconds(-120)
+(Get-Item $rightFile).LastWriteTime = (Get-Date).AddSeconds(-60)
+
+if (Invoke-Sync) {
+    # Run a second sync pass to ensure case normalization is fully applied
+    Invoke-Sync | Out-Null
+
+    $canonicalLeftPath = "$test_left\casetest.txt"
+    $canonicalRightPath = "$test_right\casetest.txt"
+    $leftExists = Test-Path $canonicalLeftPath
+    $rightExists = Test-Path $canonicalRightPath
+    $contentMatches = $leftExists -and $rightExists -and
+        (Get-Content $canonicalLeftPath -Raw) -eq "NEW-RIGHT-CONTENT" -and
+        (Get-Content $canonicalRightPath -Raw) -eq "NEW-RIGHT-CONTENT"
+
+    $conflictLeft = Get-ChildItem -LiteralPath $test_left -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
+    $conflictRight = Get-ChildItem -LiteralPath $test_right -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
+    $conflictExists = ($conflictLeft.Count -gt 0) -and ($conflictRight.Count -gt 0)
+    $conflictContentOk = $conflictExists -and
+        ((Get-Content $conflictLeft[0].FullName -Raw) -eq "older-left-case") -and
+        ((Get-Content $conflictRight[0].FullName -Raw) -eq "older-left-case")
+
+    $leftNames = Get-ChildItem -LiteralPath $test_left | Select-Object -ExpandProperty Name
+    $rightNames = Get-ChildItem -LiteralPath $test_right | Select-Object -ExpandProperty Name
+    $noOldCasingLeft = -not ($leftNames -contains "CaseTest.txt")
+    $noOldCasingRight = -not ($rightNames -contains "CaseTest.txt")
+
+    Write-Result "Canonical file exists on left" $leftExists
+    Write-Result "Canonical file exists on right" $rightExists
+    Write-Result "Canonical content matches newer side" $contentMatches
+    Write-Result "Conflict files exist on both sides" $conflictExists
+    Write-Result "Conflict files contain older content" $conflictContentOk
+    Write-Result "Old casing removed on left" $noOldCasingLeft
+    Write-Result "Old casing removed on right" $noOldCasingRight
+
+    if ($leftExists -and $rightExists -and $contentMatches -and $conflictExists -and $conflictContentOk -and $noOldCasingLeft -and $noOldCasingRight) {
+        $passedTests++
+        Write-Result "Test 26 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 26 FAILED" $false
     }
 }
 Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue

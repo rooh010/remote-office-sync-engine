@@ -127,8 +127,9 @@ The script builds a temporary config (`config.manualtest.tmp.yaml`) using the pa
 
 You can also run the manual suite in CI on a free GitHub Actions Windows runner using temp folders via `.github/workflows/manual-tests.yml` (trigger with `workflow_dispatch`).
 The workflow fails if any manual test fails.
+Manual suite now includes 26 tests, adding a case-conflict check that ensures newer content wins and conflict artifacts are created on both sides.
 
-**The 17 manual test cases verify:**
+**The 26 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
 2. **File Creation R→L**: Create file on right, sync, verify on left with matching content

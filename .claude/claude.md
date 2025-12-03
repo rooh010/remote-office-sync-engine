@@ -99,7 +99,7 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 
 The script automatically:
 - Generates a temporary config (`config.manualtest.tmp.yaml`) with the provided paths and `dry_run: false` (config.yaml is untouched)
-- Runs all 25 test cases
+- Runs all 26 test cases (includes a case-conflict check that ensures newer content wins and conflict artifacts are created on both sides)
 - Reports pass/fail for each test
 - Cleans up test files
 
