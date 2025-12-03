@@ -379,6 +379,10 @@ class SyncRunner:
                             return
                         if existing.name == desired.name:
                             return
+                        if desired.exists() and not desired.samefile(existing):
+                            # Another file already exists at the desired path; remove the older one.
+                            existing.unlink(missing_ok=True)
+                            return
                         desired.parent.mkdir(parents=True, exist_ok=True)
                         # On case-insensitive FS a direct rename may no-op; hop through a temp.
                         temp = desired.with_name(
