@@ -551,6 +551,49 @@ class SyncRunner:
                     logger.error(f"Failed to handle case conflict for {job.file_path}: {e}")
                     return False
 
+            elif job.action == SyncAction.DIR_CASE_CONFLICT:
+                # Handle directory-level case conflict
+                # job.file_path = left case (canonical), job.src_path = right case
+                left_case = job.file_path
+                right_case = job.src_path
+
+                right_dir = Path(self.config.right_root) / right_case
+
+                logger.info(
+                    f"[DIR_CASE_CONFLICT] Renaming directory on right: "
+                    f"{right_case} -> {left_case}"
+                )
+
+                # Rename the directory on the right side to match left side's case
+                if right_dir.exists() and right_dir.is_dir():
+                    # Windows case-insensitive rename requires a temp name
+                    temp_name = f"{right_case}_temp_{id(job)}"
+                    temp_dir = Path(self.config.right_root) / temp_name
+
+                    try:
+                        # Step 1: Rename to temp
+                        right_dir.rename(temp_dir)
+                        # Step 2: Rename to target case
+                        final_dir = Path(self.config.right_root) / left_case
+                        temp_dir.rename(final_dir)
+                        logger.info(
+                            f"[DIR_CASE_CONFLICT] Successfully renamed directory: "
+                            f"{right_case} -> {left_case}"
+                        )
+                    except (OSError, IOError) as e:
+                        logger.error(f"Failed to rename directory {right_case} to {left_case}: {e}")
+                        # Try to restore from temp if it exists
+                        if temp_dir.exists():
+                            try:
+                                temp_dir.rename(right_dir)
+                            except Exception:
+                                pass
+                        return False
+                else:
+                    logger.warning(
+                        f"[DIR_CASE_CONFLICT] Directory not found or not a directory: {right_dir}"
+                    )
+
             elif job.action == SyncAction.RENAME_CONFLICT:
                 # Handle rename conflict: right_new exists on right, left_new on left
                 # For case conflicts: keep main case file, create conflict from variant

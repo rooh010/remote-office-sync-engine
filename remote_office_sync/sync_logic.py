@@ -24,6 +24,7 @@ class SyncAction(Enum):
     SOFT_DELETE_RIGHT = "SOFT_DELETE_RIGHT"
     CLASH_CREATE = "CLASH_CREATE"
     CASE_CONFLICT = "CASE_CONFLICT"
+    DIR_CASE_CONFLICT = "DIR_CASE_CONFLICT"
     RENAME_LEFT = "RENAME_LEFT"
     RENAME_RIGHT = "RENAME_RIGHT"
     RENAME_CONFLICT = "RENAME_CONFLICT"
@@ -107,6 +108,17 @@ class SyncEngine:
 
         # First detect case-only changes and case conflicts
         case_changes, case_conflicts = self._detect_case_changes()
+
+        # Detect directory-level case conflicts
+        dir_case_conflicts = self._detect_directory_case_conflicts()
+
+        # Handle directory case conflicts first
+        for base_dir, (left_case, right_case) in dir_case_conflicts.items():
+            # Mark all files in these directories as processed
+            for file_path in list(self.current_state.keys()):
+                if file_path.lower().startswith(base_dir.lower() + "/"):
+                    processed.add(file_path)
+            jobs.extend(self._handle_directory_case_conflict(base_dir, left_case, right_case))
 
         # Handle case conflicts (both sides changed case differently)
         for prev_path, (left_case, right_case) in case_conflicts.items():
@@ -598,6 +610,53 @@ class SyncEngine:
 
         return case_changes, case_conflicts
 
+    def _detect_directory_case_conflicts(self) -> Dict[str, tuple[str, str]]:
+        """Detect when directory names differ only by case across left/right.
+
+        Returns:
+            Dict mapping base_dir (lowercase) -> (left_case_dir, right_case_dir)
+        """
+        from pathlib import Path
+
+        # Extract all unique directory paths from file paths
+        left_dirs = set()
+        right_dirs = set()
+
+        for file_path, metadata in self.current_state.items():
+            if metadata.is_directory():
+                # Empty directories are tracked directly
+                if metadata.exists_left:
+                    left_dirs.add(file_path)
+                if metadata.exists_right:
+                    right_dirs.add(file_path)
+            else:
+                # Extract parent directories from file paths
+                parts = Path(file_path).parts
+                for i in range(len(parts)):
+                    dir_path = "/".join(parts[: i + 1])
+                    if i < len(parts) - 1:  # Not the file itself
+                        if metadata.exists_left:
+                            left_dirs.add(dir_path)
+                        if metadata.exists_right:
+                            right_dirs.add(dir_path)
+
+        # Find directories that exist on both sides with different cases
+        dir_conflicts = {}
+
+        for left_dir in left_dirs:
+            left_lower = left_dir.lower()
+            for right_dir in right_dirs:
+                if right_dir.lower() == left_lower and left_dir != right_dir:
+                    # Found case mismatch
+                    logger.warning(
+                        f"Directory case conflict detected: "
+                        f"{left_dir} (left) vs {right_dir} (right)"
+                    )
+                    dir_conflicts[left_lower] = (left_dir, right_dir)
+                    break
+
+        return dir_conflicts
+
     def _group_by_lower_case(self) -> Dict[str, list]:
         """Group current state paths by lowercase variant.
 
@@ -740,6 +799,37 @@ class SyncEngine:
         )
         logger.debug(f"Creating CASE_CONFLICT job: {job}")
         jobs.append(job)
+
+        return jobs
+
+    def _handle_directory_case_conflict(
+        self, base_dir: str, left_case: str, right_case: str
+    ) -> List[SyncJob]:
+        """Handle a directory-level case conflict.
+
+        When a directory has different cases on left and right (e.g., Work/ vs work/),
+        we need to rename the directory itself, not just handle files individually.
+
+        Args:
+            base_dir: Lowercase base directory path
+            left_case: Directory path as it appears on left
+            right_case: Directory path as it appears on right
+
+        Returns:
+            List of sync jobs (DIR_CASE_CONFLICT action)
+        """
+        logger.info(f"Handling directory case conflict: {left_case} (left) vs {right_case} (right)")
+
+        # Create a special DIR_CASE_CONFLICT job that will rename the directory
+        # We'll use left side's case as the canonical case (left-wins strategy)
+        jobs = [
+            SyncJob(
+                action=SyncAction.DIR_CASE_CONFLICT,
+                file_path=left_case,
+                src_path=right_case,
+                details=f"Directory case conflict: {left_case} (left) vs {right_case} (right)",
+            )
+        ]
 
         return jobs
 

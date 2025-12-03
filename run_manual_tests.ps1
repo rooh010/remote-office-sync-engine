@@ -880,17 +880,32 @@ Invoke-Sync | Out-Null
 Rename-Item -Path "$test_left\MyFolder" -NewName "myfolder_temp"
 Rename-Item -Path "$test_left\myfolder_temp" -NewName "myfolder"
 if (Invoke-Sync) {
-    # After sync, both sides should have the new case
-    $leftHasLower = Test-Path "$test_left\myfolder\file.txt"
-    $rightHasLower = Test-Path "$test_right\myfolder\file.txt"
-    Write-Result "Left has lowercase folder with file" $leftHasLower
-    Write-Result "Right has lowercase folder with file" $rightHasLower
-    if ($leftHasLower -and $rightHasLower) {
+    # After sync, both sides should have the SAME case (lowercase)
+    # Check what case we actually have on each side
+    $leftDirs = Get-ChildItem -Path $test_left -Directory | Where-Object { $_.Name -like "*folder" }
+    $rightDirs = Get-ChildItem -Path $test_right -Directory | Where-Object { $_.Name -like "*folder" }
+
+    $leftCase = if ($leftDirs.Count -gt 0) { $leftDirs[0].Name } else { "NOT FOUND" }
+    $rightCase = if ($rightDirs.Count -gt 0) { $rightDirs[0].Name } else { "NOT FOUND" }
+
+    Write-Host "  Left folder case: $leftCase"
+    Write-Host "  Right folder case: $rightCase"
+
+    # Both should exist and have matching case
+    $leftHasFolder = Test-Path "$test_left\myfolder\file.txt"
+    $rightHasFolder = Test-Path "$test_right\myfolder\file.txt"
+    $casesMatch = ($leftCase -ceq $rightCase) -and ($leftCase -ceq "myfolder")
+
+    Write-Result "Left has folder with file" $leftHasFolder
+    Write-Result "Right has folder with file" $rightHasFolder
+    Write-Result "Both sides have matching lowercase case" $casesMatch
+
+    if ($leftHasFolder -and $rightHasFolder -and $casesMatch) {
         $passedTests++
         Write-Result "Test 25 PASSED" $true
     } else {
         $failedTests++
-        Write-Result "Test 25 FAILED" $false
+        Write-Result "Test 25 FAILED - Case mismatch: left=$leftCase, right=$rightCase" $false
     }
 }
 Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue

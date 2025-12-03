@@ -215,3 +215,6 @@ sync_state.db
 sync.log*
 .deleted/
 config.yaml
+
+# Other
+create_test_files.ps1
