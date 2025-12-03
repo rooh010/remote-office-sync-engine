@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test, attr_test
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*", "attr_test*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test, attr_test, dir_rename_left, dir_rename_right, dir_same_rename, dir_rename_conflict, nested_rename, verify_new_rename
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*", "attr_test*", "dir_rename_left*", "dir_rename_right*", "dir_same_rename*", "dir_rename_conflict*", "nested_rename*", "verify_new_rename*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -621,6 +621,201 @@ try {
     Write-Result "Test 17 FAILED - Error during attribute test: $_" $false
     $failedTests++
 }
+
+# Test 18: Directory rename on left side only
+$totalTests++
+Write-TestHeader "Directory rename on left side only" 18
+$test_name = "dir_rename_left"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\old_folder" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\old_folder" -Force | Out-Null
+"test content" | Set-Content "$test_left\old_folder\file.txt"
+"test content" | Set-Content "$test_right\old_folder\file.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+Rename-Item -Path "$test_left\old_folder" -NewName "new_folder"
+if (Invoke-Sync) {
+    $newOnLeft = Test-Path "$test_left\new_folder" -PathType Container
+    $newOnRight = Test-Path "$test_right\new_folder" -PathType Container
+    $oldOnLeft = Test-Path "$test_left\old_folder" -PathType Container
+    $oldOnRight = Test-Path "$test_right\old_folder" -PathType Container
+    $fileOnLeft = Test-Path "$test_left\new_folder\file.txt"
+    $fileOnRight = Test-Path "$test_right\new_folder\file.txt"
+    Write-Result "New folder exists on left" $newOnLeft
+    Write-Result "New folder exists on right" $newOnRight
+    Write-Result "Old folder does not exist on left" (-not $oldOnLeft)
+    Write-Result "Old folder does not exist on right" (-not $oldOnRight)
+    Write-Result "File exists in new folder on left" $fileOnLeft
+    Write-Result "File exists in new folder on right" $fileOnRight
+    if ($newOnLeft -and $newOnRight -and (-not $oldOnLeft) -and (-not $oldOnRight) -and $fileOnLeft -and $fileOnRight) {
+        $passedTests++
+        Write-Result "Test 18 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 18 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 19: Directory rename on right side only
+$totalTests++
+Write-TestHeader "Directory rename on right side only" 19
+$test_name = "dir_rename_right"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\old_folder" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\old_folder" -Force | Out-Null
+"test content" | Set-Content "$test_left\old_folder\file.txt"
+"test content" | Set-Content "$test_right\old_folder\file.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+Rename-Item -Path "$test_right\old_folder" -NewName "new_folder"
+if (Invoke-Sync) {
+    $newOnLeft = Test-Path "$test_left\new_folder" -PathType Container
+    $newOnRight = Test-Path "$test_right\new_folder" -PathType Container
+    $oldOnLeft = Test-Path "$test_left\old_folder" -PathType Container
+    $oldOnRight = Test-Path "$test_right\old_folder" -PathType Container
+    Write-Result "New folder exists on left" $newOnLeft
+    Write-Result "New folder exists on right" $newOnRight
+    Write-Result "Old folder does not exist on left" (-not $oldOnLeft)
+    Write-Result "Old folder does not exist on right" (-not $oldOnRight)
+    if ($newOnLeft -and $newOnRight -and (-not $oldOnLeft) -and (-not $oldOnRight)) {
+        $passedTests++
+        Write-Result "Test 19 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 19 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 20: Directory rename to same name on both sides
+$totalTests++
+Write-TestHeader "Directory rename to same name on both sides" 20
+$test_name = "dir_same_rename"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\old_folder" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\old_folder" -Force | Out-Null
+"test content" | Set-Content "$test_left\old_folder\file.txt"
+"test content" | Set-Content "$test_right\old_folder\file.txt"
+Rename-Item -Path "$test_left\old_folder" -NewName "new_folder"
+Rename-Item -Path "$test_right\old_folder" -NewName "new_folder"
+if (Invoke-Sync) {
+    $newOnLeft = Test-Path "$test_left\new_folder" -PathType Container
+    $newOnRight = Test-Path "$test_right\new_folder" -PathType Container
+    $oldOnLeft = Test-Path "$test_left\old_folder" -PathType Container
+    $oldOnRight = Test-Path "$test_right\old_folder" -PathType Container
+    Write-Result "New folder exists on both sides" ($newOnLeft -and $newOnRight)
+    Write-Result "Old folder does not exist on left" (-not $oldOnLeft)
+    Write-Result "Old folder does not exist on right" (-not $oldOnRight)
+    if ($newOnLeft -and $newOnRight -and (-not $oldOnLeft) -and (-not $oldOnRight)) {
+        $passedTests++
+        Write-Result "Test 20 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 20 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 21: Directory rename conflict (different names on both sides)
+$totalTests++
+Write-TestHeader "Directory rename conflict (different names)" 21
+$test_name = "dir_rename_conflict"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\old_folder" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\old_folder" -Force | Out-Null
+"test content" | Set-Content "$test_left\old_folder\file.txt"
+"test content" | Set-Content "$test_right\old_folder\file.txt"
+Rename-Item -Path "$test_left\old_folder" -NewName "left_folder"
+Rename-Item -Path "$test_right\old_folder" -NewName "right_folder"
+if (Invoke-Sync) {
+    Write-Result "Rename conflict handled without crash" $true
+    $passedTests++
+    Write-Result "Test 21 PASSED" $true
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 22: Nested directory rename
+$totalTests++
+Write-TestHeader "Nested directory rename" 22
+$test_name = "nested_rename"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\old\sub1\sub2" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\old\sub1\sub2" -Force | Out-Null
+"file1" | Set-Content "$test_left\old\file1.txt"
+"file2" | Set-Content "$test_left\old\sub1\file2.txt"
+"file3" | Set-Content "$test_left\old\sub1\sub2\file3.txt"
+"file1" | Set-Content "$test_right\old\file1.txt"
+"file2" | Set-Content "$test_right\old\sub1\file2.txt"
+"file3" | Set-Content "$test_right\old\sub1\sub2\file3.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+Rename-Item -Path "$test_left\old" -NewName "new"
+if (Invoke-Sync) {
+    $nestedLeft = Test-Path "$test_left\new\sub1\sub2\file3.txt"
+    $nestedRight = Test-Path "$test_right\new\sub1\sub2\file3.txt"
+    $oldLeft = Test-Path "$test_left\old" -PathType Container
+    $oldRight = Test-Path "$test_right\old" -PathType Container
+    Write-Result "Nested structure on left" $nestedLeft
+    Write-Result "Nested structure on right" $nestedRight
+    Write-Result "Old folder does not exist on left" (-not $oldLeft)
+    Write-Result "Old folder does not exist on right" (-not $oldRight)
+    if ($nestedLeft -and $nestedRight -and (-not $oldLeft) -and (-not $oldRight)) {
+        $passedTests++
+        Write-Result "Test 22 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 22 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 23: Verify renamed directory content syncs correctly
+$totalTests++
+Write-TestHeader "Verify renamed directory content syncs correctly" 23
+$test_name = "verify_new_rename"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\folder1" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\folder1" -Force | Out-Null
+"test content renamed" | Set-Content "$test_left\folder1\file.txt"
+"test content renamed" | Set-Content "$test_right\folder1\file.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+Rename-Item -Path "$test_left\folder1" -NewName "folder1_renamed"
+if (Invoke-Sync) {
+    $leftExists = Test-Path "$test_left\folder1_renamed\file.txt"
+    $rightExists = Test-Path "$test_right\folder1_renamed\file.txt"
+    $oldLeft = Test-Path "$test_left\folder1" -PathType Container
+    $oldRight = Test-Path "$test_right\folder1" -PathType Container
+    $contentMatches = if ($leftExists -and $rightExists) {
+        Test-ContentMatch "$test_left\folder1_renamed\file.txt" "$test_right\folder1_renamed\file.txt" "Content"
+    } else { $false }
+    Write-Result "Renamed folder on left" $leftExists
+    Write-Result "Renamed folder on right" $rightExists
+    Write-Result "Old folder does not exist on left" (-not $oldLeft)
+    Write-Result "Old folder does not exist on right" (-not $oldRight)
+    Write-Result "Content matches" $contentMatches
+    if ($leftExists -and $rightExists -and (-not $oldLeft) -and (-not $oldRight) -and $contentMatches) {
+        $passedTests++
+        Write-Result "Test 23 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 23 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
 
 # Summary
 Write-Host "`n$('='*60)" -ForegroundColor $InfoColor

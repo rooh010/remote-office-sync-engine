@@ -100,7 +100,7 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
-- Runs all 17 test cases
+- Runs all 23 test cases
 - Reports pass/fail for each test
 - Cleans up test files
 
@@ -141,6 +141,12 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
     - Verify all operations complete and conflicts are properly handled
 16. **Case Conflict in Subdirectory:** Create case-insensitive conflict in subdirectory → verify main and conflict files exist in subdirectory with correct case
 17. **File Attribute Synchronization:** Create file with attributes → sync → set different attributes on each side → verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
+18. **Directory Rename L→R:** Rename folder on left only → sync → verify renamed folder exists on both sides with all files
+19. **Directory Rename R→L:** Rename folder on right only → sync → verify renamed folder exists on both sides with all files
+20. **Directory Rename Same Name:** Rename folder to same name on both sides → sync → verify no conflicts and folder exists with correct name
+21. **Directory Rename Conflict:** Rename folder to different names on both sides → sync → verify conflict handled without crash
+22. **Nested Directory Rename:** Rename parent folder containing nested subdirectories → sync → verify entire structure renamed correctly
+23. **Directory Rename Content Verification:** Rename folder → sync → verify content and structure preserved in renamed folder
 
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**

@@ -13,11 +13,11 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from remote_office_sync.config_loader import Config
+from remote_office_sync.file_ops import FileOps
 from remote_office_sync.scanner import Scanner
 from remote_office_sync.state_db import StateDB
-from remote_office_sync.sync_logic import SyncEngine, SyncAction
-from remote_office_sync.file_ops import FileOps
-from remote_office_sync.config_loader import Config
+from remote_office_sync.sync_logic import SyncAction, SyncEngine
 
 
 def set_file_attribute_win32(path: str, attrs: int) -> bool:
@@ -86,7 +86,7 @@ def main():
         left_dir.mkdir()
         right_dir.mkdir()
 
-        print(f"\nTest directories created:")
+        print("\nTest directories created:")
         print(f"  LEFT:  {left_dir}")
         print(f"  RIGHT: {right_dir}")
         print(f"  DB:    {db_path}")
@@ -284,7 +284,7 @@ def main():
         set_file_attribute_win32(str(left_attr_file), 0x05)  # Hidden + Archive
         right_initial_attrs = Scanner.get_file_attributes(right_attr_file)
 
-        print(f"Before sync:")
+        print("Before sync:")
         print(f"  LEFT:  0x{Scanner.get_file_attributes(left_attr_file):02x}")
         print(f"  RIGHT: 0x{right_initial_attrs:02x}")
 
@@ -294,7 +294,7 @@ def main():
         print_result(success, "SYNC_ATTRS_LEFT_TO_RIGHT executed")
 
         right_final_attrs = Scanner.get_file_attributes(right_attr_file)
-        print(f"After sync:")
+        print("After sync:")
         print(f"  LEFT:  0x{Scanner.get_file_attributes(left_attr_file):02x}")
         print(f"  RIGHT: 0x{right_final_attrs:02x}")
 
@@ -330,7 +330,6 @@ def main():
         # Scan after change
         changed_left = Scanner().scan_directory(str(integration_left))
         changed_right = Scanner().scan_directory(str(integration_right))
-        changed_merged = Scanner().merge_scans(changed_left, changed_right)
 
         # Generate sync jobs
         config_2 = Config(

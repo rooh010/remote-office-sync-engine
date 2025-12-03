@@ -142,7 +142,14 @@ class FileOps:
             file_path = Path(path)
 
             if not file_path.exists():
-                logger.warning(f"File does not exist: {path}")
+                logger.warning(f"File/directory does not exist: {path}")
+                return
+
+            # Handle directories differently from files
+            if file_path.is_dir():
+                # For directories, recursively remove if non-empty
+                shutil.rmtree(file_path)
+                logger.info(f"Deleted directory: {path}")
                 return
 
             file_size = file_path.stat().st_size
@@ -156,7 +163,7 @@ class FileOps:
                 file_path.unlink()
                 logger.info(f"Hard deleted file: {path}")
         except (OSError, IOError) as e:
-            logger.error(f"Failed to delete file {path}: {e}")
+            logger.error(f"Failed to delete file/directory {path}: {e}")
             raise FileOpsError(f"Delete failed: {e}") from e
 
     def _soft_delete(self, path: str) -> None:

@@ -170,9 +170,18 @@ class SyncRunner:
 
         executed = 0
         failed = 0
+        deleted_file_parents = set()  # Track parent dirs of deleted files
 
         for job in jobs:
             try:
+                # Track parent directories of deleted files for cleanup
+                if job.action.name.startswith("DELETE") or job.action.name.startswith(
+                    "SOFT_DELETE"
+                ):
+                    parent = str(Path(job.file_path).parent)
+                    if parent != ".":
+                        deleted_file_parents.add(parent)
+
                 if self._execute_job(job):
                     executed += 1
                 else:
@@ -187,6 +196,9 @@ class SyncRunner:
                     )
                 )
                 failed += 1
+
+        # Clean up empty directories that resulted from file deletions/renames
+        self._cleanup_empty_directories(deleted_file_parents)
 
         # Clean up state: merge case variant entries back to their canonical form
         # After case conflicts are resolved, remove variant entries from state
@@ -683,6 +695,49 @@ class SyncRunner:
         except FileOpsError as e:
             logger.error(f"File operation failed for {job.file_path}: {e}")
             return False
+
+    def _cleanup_empty_directories(self, deleted_file_parents: set) -> None:
+        """Clean up empty directories that resulted from file deletions/renames.
+
+        When files are deleted or moved due to renames, parent directories may become
+        empty. This method removes empty directories from the tracked parent paths.
+
+        Args:
+            deleted_file_parents: Set of relative parent directory paths where files
+                                 were deleted
+        """
+
+        def remove_empty_dir_chain(root_path: str, rel_path: str) -> None:
+            """Remove empty directory and recurse up to parent if it becomes empty.
+
+            Args:
+                root_path: Absolute root path (left or right)
+                rel_path: Relative path to directory to check
+            """
+            root = Path(root_path)
+            dir_path = root / rel_path
+
+            # Don't delete the root itself
+            if dir_path == root or not dir_path.exists():
+                return
+
+            # Check if directory is empty
+            try:
+                if not any(dir_path.iterdir()):
+                    logger.info(f"Removing empty directory: {dir_path}")
+                    dir_path.rmdir()
+
+                    # Recursively check parent
+                    parent_rel = str(Path(rel_path).parent)
+                    if parent_rel != ".":
+                        remove_empty_dir_chain(root_path, parent_rel)
+            except (OSError, IOError) as e:
+                logger.debug(f"Could not remove directory {dir_path}: {e}")
+
+        # Clean up directories where files were deleted
+        for rel_parent in deleted_file_parents:
+            remove_empty_dir_chain(self.config.left_root, rel_parent)
+            remove_empty_dir_chain(self.config.right_root, rel_parent)
 
     def _cleanup_case_variants(self, current_state: Dict[str, FileMetadata]) -> None:
         """Remove case variant entries from state after conflicts are resolved.
