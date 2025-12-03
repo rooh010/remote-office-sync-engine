@@ -2,6 +2,12 @@ name: Manual Sync Tests
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'run_manual_tests.ps1'
+      - 'remote_office_sync/**'
+      - '.github/workflows/manual-tests.yml'
+      - 'requirements.txt'
 
 jobs:
   manual-tests:
