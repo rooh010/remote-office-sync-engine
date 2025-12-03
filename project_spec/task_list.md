@@ -12,9 +12,9 @@ Python script, later run as a Windows service on the file server.
 
 Bidirectional sync:
 
-Left: local file server share (e.g. C:\pdrive_local)
+Left: local file server share (e.g. C:\local_share)
 
-Right: P:\ (pCloud drive)
+Right: R:\ (remote drive)
 
 Scale: ~90k files, ~550 GB.
 
@@ -56,9 +56,9 @@ Single config file (YAML or TOML recommended).
 
 Configurable items:
 
-Left root path (C:\pdrive_local).
+Left root path (C:\local_share).
 
-Right root path (P:\).
+Right root path (R:\).
 
 Email settings (SMTP, from, to).
 
@@ -308,7 +308,7 @@ Monitor both:
 
 Left path (local share).
 
-Right path (pCloud drive P:\), if watcher events are reliable.
+Right path (remote drive R:\), if watcher events are reliable.
 
 #### Build event queue:
 
@@ -379,7 +379,7 @@ Hash if used.
 
 Last operation performed.
 
-#### On start up:
+#### On start ur:
 
 Load metadata.
 
@@ -426,9 +426,9 @@ Service start, stop, restart behaviour.
 
 Service account with correct permissions to:
 
-Access C:\pdrive_local.
+Access C:\local_share.
 
-Access P:\ mapped drive or UNC path.
+Access R:\ mapped drive or UNC path.
 
 Access log directory.
 

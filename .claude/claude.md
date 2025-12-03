@@ -91,15 +91,14 @@ Instead of running tests manually, use the automated PowerShell script: `run_man
 
 ```powershell
 # Run with default test directories
-.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+.\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 
 # Run with custom directories
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
 
 The script automatically:
-- Sets `dry_run: false` in config.yaml before testing
-- Restores `dry_run: true` after testing
+- Generates a temporary config (`config.manualtest.tmp.yaml`) with the provided paths and `dry_run: false` (config.yaml is untouched)
 - Runs all 25 test cases
 - Reports pass/fail for each test
 - Cleans up test files
@@ -114,7 +113,7 @@ The script automatically:
 #### Manual Testing (If Running Tests Manually)
 **Before every push, manually verify these scenarios with real directories:**
 
-Test directories: `C:\pdrive_local\` (left) and `p:\` (right)
+Test directories: `C:\local_share\` (left) and `R:\remote_share` (right)
 
 Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 
@@ -153,7 +152,7 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**
 - Use file size comparison as quick check
-- For text files, compare actual content: `diff C:\pdrive_local\file.txt p:\file.txt`
+- For text files, compare actual content: `diff C:\pdrive_local\file.txt R:\remote_sharefile.txt`
 - For binary files, compare checksums: `Get-FileHash`
 - Verify both the main file AND any conflict files have correct content
 
@@ -187,7 +186,7 @@ echo "test content" > C:\pdrive_local\manual_test.txt
 python -m remote_office_sync.main  # Should copy to right
 rm C:\pdrive_local\manual_test.txt
 python -m remote_office_sync.main  # Should delete from right
-# Verify p:\manual_test.txt is deleted (or in .deleted/)
+# Verify R:\remote_sharemanual_test.txt is deleted (or in .deleted/)
 
 # Restore dry run
 # Change dry_run: true in config.yaml

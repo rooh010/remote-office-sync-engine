@@ -13,39 +13,6 @@ if not exist venv (
     )
 )
 
-REM Check if pCloud is running (unless --no-pcloud flag is passed or disabled in config)
-set SKIP_PCLOUD_CHECK=0
-
-REM Check command-line flag
-echo %* | findstr /C:"--no-pcloud" >nul
-if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
-
-REM Check config.yaml setting (if file exists and flag not already set)
-if exist config.yaml (
-    if %SKIP_PCLOUD_CHECK%==0 (
-        REM Use PowerShell for more reliable YAML parsing
-        powershell -NoProfile -Command "& {$c = Get-Content 'config.yaml' -Raw; if ($c -match '(?m)^\s*pcloud_check\s*:[\s\S]*?enabled\s*:\s*false') {exit 0} else {exit 1}}" >nul 2>&1
-        if not errorlevel 1 set SKIP_PCLOUD_CHECK=1
-    )
-)
-
-if %SKIP_PCLOUD_CHECK%==0 (
-    echo Checking pCloud status...
-    tasklist /FI "IMAGENAME eq pCloud.exe" 2>NUL | find /I /N "pCloud.exe">NUL
-    if errorlevel 1 (
-        echo [ERROR] pCloud is not running!
-        echo Please start pCloud.exe before running this sync script.
-        echo The P:\ drive must be available for sync to work.
-        echo.
-        echo To skip this check, use: run_sync.bat --no-pcloud
-        echo Or set pcloud_check.enabled: false in config.yaml
-        echo.
-        pause
-        exit /b 1
-    )
-    echo [OK] pCloud is running
-)
-
 REM Activate venv
 call venv\Scripts\activate.bat
 
@@ -72,20 +39,8 @@ REM Run sync
 echo.
 echo Starting Remote Office Sync...
 echo.
-
-REM Build argument list for Python, filtering out --no-pcloud
-set PYTHON_ARGS=
-:build_args
-if "%1"=="" goto run_python
-if not "%1"=="--no-pcloud" (
-    set PYTHON_ARGS=%PYTHON_ARGS% %1
-)
-shift
-goto build_args
-
-:run_python
 REM Check if --no-dry-run is in the arguments
-echo %PYTHON_ARGS% | findstr /C:"--no-dry-run" >nul
+echo %* | findstr /C:"--no-dry-run" >nul
 if errorlevel 1 (
     echo Running in DRY RUN mode ^(no changes will be made^)
     echo To perform actual sync, run: run_sync.bat --no-dry-run
@@ -95,7 +50,7 @@ if errorlevel 1 (
     echo.
 )
 
-python -m remote_office_sync.main --config config.yaml%PYTHON_ARGS%
+python -m remote_office_sync.main --config config.yaml %*
 
 REM Show log file location
 if exist sync.log (

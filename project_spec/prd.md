@@ -20,15 +20,15 @@ Target platform: Windows Server (file server)
 
 A remote office uses:
 
-A local Windows file server with a share at C:\pdrive_local (used by in-office staff over LAN).
+A local Windows file server with a share at C:\local_share (used by in-office staff over LAN).
 
-A pCloud drive mapped as P:\ (cloud storage, used by remote/home workers).
+A remote drive mapped as R:\ (cloud storage, used by remote/home workers).
 
-Internet connectivity from the office to the internet is slow and unreliable, so office users should primarily use the local file server, while external workers use pCloud.
+Internet connectivity from the office to the internet is slow and unreliable, so office users should primarily use the local file server, while external workers use remote drive.
 
 Currently:
 
-There is a basic script that syncs P:\ and C:\pdrive_local, but it is not robust.
+There is a basic script that syncs R:\ and C:\local_share, but it is not robust.
 
 Conflict handling is manual and error prone.
 
@@ -50,9 +50,9 @@ Goal: Build a robust Python-based sync script that can later be turned into a Wi
 
 Bi-directional sync between:
 
-Left: Local file server share (C:\pdrive_local)
+Left: Local file server share (C:\local_share)
 
-Right: pCloud drive (P:\)
+Right: remote drive (R:\)
 
 Ensure data consistency across both sides with clear, predictable conflict handling.
 
@@ -78,11 +78,11 @@ Content-aware merge (for documents or media) beyond the defined conflict rules.
 
 A Python script runs on the Windows file server.
 
-It treats the local share and pCloud drive as two roots:
+It treats the local share and remote drive as two roots:
 
-Left root: C:\pdrive_local
+Left root: C:\local_share
 
-Right root: P:\
+Right root: R:\
 
 The script:
 
@@ -106,9 +106,9 @@ The script is designed so it can later be wrapped as a Windows service that star
 
 ## 5. Stakeholders & Users
 
-Office workers (local network): access files via C:\pdrive_local share.
+Office workers (local network): access files via C:\local_share share.
 
-Remote/external workers: access files via pCloud (P:\).
+Remote/external workers: access files via remote drive (R:\).
 
 IT / Admin:
 
@@ -144,7 +144,7 @@ Conflict rules apply equally to small and large files, but soft delete and prior
 
 ### 6.2 Sync Rules (Core Logic)
 
-Below, Left = C:\pdrive_local, Right = P:\.
+Below, Left = C:\local_share, Right = R:\.
 
 Note: “Changed” means content modified since last sync snapshot. “New” means file exists on one or both sides when it did not exist at last snapshot. “Properties” includes metadata such as timestamps, attributes, and filename case.
 
@@ -312,9 +312,9 @@ Move the file to a configurable soft delete folder instead of permanent deletion
 
 Example:
 
-On Left: C:\pdrive_local\.sync_trash\<original_path_structure>
+On Left: C:\local_share\.sync_trash\<original_path_structure>
 
-On Right: P:\.sync_trash\<original_path_structure>
+On Right: R:\.sync_trash\<original_path_structure>
 
 Record metadata in sync state (original path, delete time, source side, size).
 
@@ -356,7 +356,7 @@ Implementation approach:
 
 Continuous loop with a short sleep (configurable, default 10 seconds).
 
-Optionally integrate file-system watchers (if reliable with pCloud) for future enhancement.
+Optionally integrate file-system watchers (if reliable with remote drive) for future enhancement.
 
 #### 6.4.2 Prioritization of Small Files
 
@@ -390,9 +390,9 @@ All major behavior must be driven by a config file, for example sync_config.json
 
 Paths:
 
-left_root: e.g. C:\\pdrive_local
+left_root: e.g. C:\\local_share
 
-right_root: e.g. P:\\
+right_root: e.g. R:\\
 
 Polling / real-time settings:
 
@@ -528,7 +528,7 @@ Stops cleanly, flushing any in-memory state.
 
 Sync must be resilient to:
 
-Temporary pCloud drive unavailability.
+Temporary remote drive unavailability.
 
 Network interruptions.
 
@@ -572,7 +572,7 @@ Service account must have least-privilege access to:
 
 Local share.
 
-pCloud drive.
+remote drive.
 
 Soft delete locations.
 
@@ -634,7 +634,7 @@ Paths that exceed Windows path length limits.
 
 Files locked by another process.
 
-Temporary pCloud drive disconnection or drive letter not mounted.
+Temporary remote drive disconnection or drive letter not mounted.
 
 Out-of-space conditions on either side or in soft delete storage.
 
@@ -656,7 +656,7 @@ Configurable rules per folder (e.g. always hard delete in temp folders).
 
 Smart bandwidth throttling based on time of day or WAN usage.
 
-Integration with pCloud APIs directly (instead of only via mapped drive) for more efficient operations.
+Integration with remote drive APIs directly (instead of only via mapped drive) for more efficient operations.
 
 Automatic cleanup of soft delete folder based on retention and size thresholds.
 
@@ -668,7 +668,7 @@ A first version is considered acceptable when:
 
 Script can be run on the Windows file server pointing at:
 
-C:\pdrive_local and P:\.
+C:\local_share and R:\.
 
 After initial scan:
 

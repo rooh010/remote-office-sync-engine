@@ -59,8 +59,8 @@ A Python-based bidirectional file synchronization tool for syncing between two d
    ```
    Edit `config.yaml` with your environment-specific paths and settings:
    ```yaml
-   left_root: "C:/pdrive_local/"
-   right_root: "P:/"
+   left_root: "C:/local_share/"
+   right_root: "R:/remote_share/"
    ```
    **IMPORTANT:** Paths MUST use forward slashes (`/`) not backslashes (`\`). YAML will fail to parse backslashes.
 
@@ -118,11 +118,12 @@ The project includes a comprehensive manual test suite that validates all sync s
 
 ```powershell
 # Run with default test directories
-.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+.\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 
 # Run with custom directories
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
+The script builds a temporary config (`config.manualtest.tmp.yaml`) using the paths you pass in and forces `dry_run: false`; your real `config.yaml` is never modified.
 
 **The 17 manual test cases verify:**
 
@@ -170,7 +171,7 @@ pytest
 
 Then run the manual test suite to validate real-world file sync behavior:
 ```powershell
-.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+.\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 ```
 
 ### Check Code Quality
@@ -187,8 +188,8 @@ ruff check .
 ```yaml
 # IMPORTANT: Paths MUST use forward slashes (/) not backslashes (\)
 # Backslashes will cause YAML parsing errors!
-left_root: "C:/pdrive_local/"
-right_root: "P:/"
+left_root: "C:/local_share/"
+right_root: "R:/remote_share/"
 
 dry_run: true  # RECOMMENDED: Preview changes without modifying files
 
@@ -366,8 +367,8 @@ All operations logged to `sync.log` with timestamps:
 
 ```
 2025-01-22 14:30:45 - sync - INFO - Starting sync engine
-2025-01-22 14:30:45 - sync - INFO - Scanned 1523 files in C:\pdrive_local
-2025-01-22 14:30:45 - sync - INFO - Scanned 1520 files in P:\
+2025-01-22 14:30:45 - sync - INFO - Scanned 1523 files in C:\local_share
+2025-01-22 14:30:45 - sync - INFO - Scanned 1520 files in R:\remote_share
 2025-01-22 14:30:46 - sync - INFO - [COPY_LEFT_TO_RIGHT] documents/report.docx
 2025-01-22 14:30:46 - sync - WARNING - Conflict detected: data.xlsx
 2025-01-22 14:30:47 - sync - INFO - Sync completed: 47 jobs executed, 0 failed
