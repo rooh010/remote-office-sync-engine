@@ -346,6 +346,15 @@ class SyncRunner:
                 left_case_path = Path(self.config.left_root) / job.file_path
                 right_case_path = Path(self.config.right_root) / job.src_path
 
+                # Skip complex handling for directories
+                if (left_case_path.exists() and left_case_path.is_dir()) or (
+                    right_case_path.exists() and right_case_path.is_dir()
+                ):
+                    logger.info(
+                        "[CASE_CONFLICT] " + f"{job.file_path}: skipping directory case conflict"
+                    )
+                    pass  # Skip remaining case conflict handling for directories
+
                 # DEBUG: Check file states at the START of handler
                 logger.debug("=== CASE_CONFLICT handler START ===")
                 logger.debug(f"Left path: {left_case_path}, exists: {left_case_path.exists()}")

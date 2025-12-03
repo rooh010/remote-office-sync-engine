@@ -303,7 +303,11 @@ class SyncEngine:
         return jobs
 
     def _detect_renames(self) -> tuple[Dict[str, str], Dict[str, tuple[str, str]]]:
-        """Detect file renames by matching size and mtime.
+        """Detect file and directory renames by matching size and mtime.
+
+        For files: Matches within same side (side, mtime, size).
+        For directories: Can match ACROSS sides because directories only have size=-1
+                        and may have same mtime on both sides even after rename.
 
         Returns:
             Tuple of (rename_map, rename_conflicts) where:
@@ -340,7 +344,7 @@ class SyncEngine:
                     key = ("right", curr_meta.mtime_right, curr_meta.size_right)
                     appeared.setdefault(key, []).append((curr_path, curr_meta))
 
-        # Match disappeared and appeared files
+        # Match disappeared and appeared files (same-side matching)
         for key, appeared_list in appeared.items():
             if key in disappeared:
                 disappeared_list = disappeared[key]
@@ -353,6 +357,101 @@ class SyncEngine:
                     if old_path not in renames_by_original:
                         renames_by_original[old_path] = []
                     renames_by_original[old_path].append((key[0], new_path))  # (side, new_path)
+
+        # NEW: Cross-side directory rename detection
+        # When a directory is renamed on one side only, it creates:
+        # - A disappeared entry on one side (old name still exists on other side)
+        # - An appeared entry on the same side (new name after rename)
+        # But this looks like disappeared on right and appeared on left (or vice versa)
+        #
+        # For directories (size=-1), we can match across sides:
+        # - Match (left, mtime, -1) disappeared with (right, mtime, -1) appeared
+        # - This means: left side renamed
+        #   (old name disappeared from left, new appeared on right)
+
+        # Collect unmatched disappeared and appeared entries
+        unmatched_disappeared_left = {}
+        unmatched_disappeared_right = {}
+        unmatched_appeared_left = {}
+        unmatched_appeared_right = {}
+
+        for key, items in disappeared.items():
+            if key not in appeared:
+                side, mtime, size = key
+                if side == "left":
+                    unmatched_disappeared_left[(mtime, size)] = items
+                else:
+                    unmatched_disappeared_right[(mtime, size)] = items
+
+        for key, items in appeared.items():
+            if key not in disappeared:
+                side, mtime, size = key
+                if side == "left":
+                    unmatched_appeared_left[(mtime, size)] = items
+                else:
+                    unmatched_appeared_right[(mtime, size)] = items
+
+        # For directories, try cross-side matching
+        directory_size = -1
+
+        # Case 1: Old name disappeared from left, new name appeared on right
+        # (directory was renamed on left, need to propagate to right)
+        for (left_mtime, left_size), left_disappeared_list in unmatched_disappeared_left.items():
+            if left_size != directory_size:
+                continue
+
+            # Look for right-side appeared with same mtime
+            for (right_mtime, right_size), right_appeared_list in unmatched_appeared_right.items():
+                if right_size != directory_size:
+                    continue
+
+                # Match if mtimes are equal (directory not modified, just renamed)
+                if (
+                    abs(left_mtime - right_mtime) <= self.mtime_tolerance
+                    and len(left_disappeared_list) == 1
+                    and len(right_appeared_list) == 1
+                ):
+                    old_path = left_disappeared_list[0][0]
+                    new_path = right_appeared_list[0][0]
+
+                    logger.info(
+                        f"Detected directory rename on left: "
+                        f"{old_path} -> {new_path} (rename detected across sides)"
+                    )
+
+                    if old_path not in renames_by_original:
+                        renames_by_original[old_path] = []
+                    renames_by_original[old_path].append(("left", new_path))
+
+        # Case 2: Old name disappeared from right, new name appeared on left
+        # (directory was renamed on right, need to propagate to left)
+        for (
+            right_mtime,
+            right_size,
+        ), right_disappeared_list in unmatched_disappeared_right.items():
+            if right_size != directory_size:
+                continue
+
+            for (left_mtime, left_size), left_appeared_list in unmatched_appeared_left.items():
+                if left_size != directory_size:
+                    continue
+
+                if (
+                    abs(left_mtime - right_mtime) <= self.mtime_tolerance
+                    and len(right_disappeared_list) == 1
+                    and len(left_appeared_list) == 1
+                ):
+                    old_path = right_disappeared_list[0][0]
+                    new_path = left_appeared_list[0][0]
+
+                    logger.info(
+                        f"Detected directory rename on right: "
+                        f"{old_path} -> {new_path} (rename detected across sides)"
+                    )
+
+                    if old_path not in renames_by_original:
+                        renames_by_original[old_path] = []
+                    renames_by_original[old_path].append(("right", new_path))
 
         # Check for rename conflicts (same file renamed differently on both sides)
         for old_path, renames in renames_by_original.items():
