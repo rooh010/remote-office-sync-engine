@@ -109,7 +109,7 @@ Changes:
 
 **New PowerShell integration test script with 6 real-world test cases:**
 
-Tests actual filesystem operations using C:\pdrive_local and P:\:
+Tests actual filesystem operations using C:\local_share and R:\:
 
 1. Rename on left only - verifies old folder deleted from right
 2. Rename on right only - verifies old folder deleted from left

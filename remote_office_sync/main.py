@@ -379,6 +379,9 @@ class SyncRunner:
                             return
                         if existing.name == desired.name:
                             return
+                        if desired.exists() and not desired.samefile(existing):
+                            # Another file already exists at the desired path; remove it
+                            desired.unlink(missing_ok=True)
                         desired.parent.mkdir(parents=True, exist_ok=True)
                         # On case-insensitive FS a direct rename may no-op; hop through a temp.
                         temp = desired.with_name(
@@ -431,6 +434,10 @@ class SyncRunner:
                     logger.debug(
                         f"CASE_CONFLICT snapshot mtimes - left: {left_mtime}, right: {right_mtime}"
                     )
+                    logger.info(
+                        f"[CASE_CONFLICT] mtime compare: left={left_mtime}, right={right_mtime}, "
+                        f"winner_is_left={left_mtime >= right_mtime}"
+                    )
 
                     def _resolve_bytes(path: Path, cached: Optional[bytes]) -> Optional[bytes]:
                         if cached is not None:
@@ -455,7 +462,10 @@ class SyncRunner:
                         # On equal mtimes, keep the LEFT variant and conflict the RIGHT variant.
                         winner_is_left = True
 
-                    log_message = ""
+                    canonical_left = Path(self.config.left_root) / job.src_path
+                    canonical_right = Path(self.config.right_root) / job.src_path
+
+                    # Determine which side is newer
                     if winner_is_left:
                         # Left is newer - conflict file from right (older)
                         conflict_stem = right_case_path.stem
@@ -466,14 +476,12 @@ class SyncRunner:
                                 f"Missing older content for case conflict "
                                 f"(right): {right_case_path}"
                             )
-
                         older_mtime = right_mtime
-
-                        right_unified = Path(self.config.right_root) / job.file_path
-                        self.file_ops.copy_file(str(left_case_path), str(right_unified))
-                        # Normalize case on right to match canonical left casing
-                        _force_case_rename(right_case_path, right_unified)
-
+                        newer_bytes = _resolve_bytes(left_case_path, left_bytes)
+                        if newer_bytes is None:
+                            raise FileOpsError(
+                                f"Missing newer content for case conflict (left): {left_case_path}"
+                            )
                         log_message = (
                             f"[CASE_CONFLICT] {job.file_path}: "
                             "left newer (kept), conflict from right"
@@ -487,43 +495,58 @@ class SyncRunner:
                             raise FileOpsError(
                                 f"Missing older content for case conflict (left): {left_case_path}"
                             )
-
                         older_mtime = left_mtime
-
-                        left_unified = (
-                            Path(self.config.left_root) / job.src_path
-                        )  # Use right's case
-                        right_unified = (
-                            Path(self.config.right_root) / job.src_path
-                        )  # Use right's case
-                        self.file_ops.copy_file(str(right_case_path), str(left_unified))
-                        if str(right_case_path) != str(right_unified):
-                            self.file_ops.copy_file(str(right_case_path), str(right_unified))
-                        # Normalize case on both sides to match the newer (right) casing
-                        _force_case_rename(left_case_path, left_unified)
-                        _force_case_rename(right_case_path, right_unified)
-
+                        newer_bytes = _resolve_bytes(right_case_path, right_bytes)
+                        if newer_bytes is None:
+                            raise FileOpsError(
+                                f"Missing newer content for case conflict "
+                                f"(right): {right_case_path}"
+                            )
                         log_message = (
                             f"[CASE_CONFLICT] {job.src_path}: "
                             "right newer (kept), conflict from left"
                         )
 
+                    # Step 1: Write newer bytes to canonical paths on both sides
+                    canonical_left.parent.mkdir(parents=True, exist_ok=True)
+                    canonical_right.parent.mkdir(parents=True, exist_ok=True)
+                    canonical_left.write_bytes(newer_bytes)
+                    canonical_right.write_bytes(newer_bytes)
+
+                    # Step 2: Create conflict files with older bytes on both sides
                     conflict_name = (
                         f"{conflict_stem}.CONFLICT.{self.username}.{timestamp}{conflict_suffix}"
                     )
-                    # Preserve directory structure for conflict file
                     file_dir = Path(job.file_path).parent
                     left_conflict = Path(self.config.left_root) / file_dir / conflict_name
                     right_conflict = Path(self.config.right_root) / file_dir / conflict_name
                     left_conflict.parent.mkdir(parents=True, exist_ok=True)
                     right_conflict.parent.mkdir(parents=True, exist_ok=True)
-
-                    # Write conflict content from the older variant
                     left_conflict.write_bytes(older_bytes)
                     right_conflict.write_bytes(older_bytes)
                     if older_mtime:
                         os.utime(left_conflict, (older_mtime, older_mtime))
                         os.utime(right_conflict, (older_mtime, older_mtime))
+
+                    # Step 3: Clean up old-casing files if they differ from canonical
+                    # On case-insensitive FS, the old-casing file might be the same file
+                    # as canonical, so we need to check carefully
+                    for old_path, canonical_path in [
+                        (left_case_path, canonical_left),
+                        (right_case_path, canonical_right),
+                    ]:
+                        if old_path.exists() and old_path.name != canonical_path.name:
+                            # Case differs - check if it's the same physical file
+                            try:
+                                if old_path.samefile(canonical_path):
+                                    # Same file - need to rename to canonical case
+                                    _force_case_rename(old_path, canonical_path)
+                                else:
+                                    # Different file - just delete the old one
+                                    old_path.unlink(missing_ok=True)
+                            except (OSError, FileNotFoundError):
+                                # File might have been removed already
+                                pass
 
                     if log_message:
                         logger.info(f"{log_message} ({left_conflict.name})")

@@ -1,6 +1,6 @@
 # Manual Test Suite for File Sync Application
 # This script automates all manual tests documented in .claude/CLAUDE.md
-# Usage: .\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+# Usage: .\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 
 param(
     [Parameter(Mandatory=$true)]
@@ -55,7 +55,11 @@ function Test-ContentMatch {
 
 function Invoke-Sync {
     Write-Host "Running sync..." -ForegroundColor $InfoColor
-    $output = python -m remote_office_sync.main 2>&1
+    $configArg = @()
+    if (Test-Path -LiteralPath $TempConfigPath) {
+        $configArg = @("--config", $TempConfigPath)
+    }
+    $output = python -m remote_office_sync.main @configArg 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Sync completed successfully" -ForegroundColor $SuccessColor
     } else {
@@ -110,18 +114,54 @@ if (-not (Test-Path -LiteralPath $RightPath)) {
     exit 1
 }
 
-# Set dry_run to false for testing
+# Reset sync state for isolated test runs
+Remove-Item -LiteralPath "sync_state.db" -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".deleted" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Build a temporary config using provided paths (without touching config.yaml)
 Write-Host "`nConfiguring sync for testing..." -ForegroundColor $InfoColor
+$TempConfigPath = Join-Path $PSScriptRoot "config.manualtest.tmp.yaml"
+
+# Start from existing config.yaml if present, else fall back to template or minimal defaults
 if (Test-Path -LiteralPath "config.yaml") {
     $config = Get-Content "config.yaml" -Raw
-    $originalConfig = $config
-    $config = $config -replace 'dry_run:\s+true', 'dry_run: false'
-    $config = $config -replace 'dry_run:\s+false', 'dry_run: false'
-    Set-Content "config.yaml" $config
-    Write-Host "Set dry_run: false in config.yaml" -ForegroundColor $SuccessColor
+    Write-Host "Using config.yaml as base for test config" -ForegroundColor $InfoColor
+} elseif (Test-Path -LiteralPath "config.template.yaml") {
+    $config = Get-Content "config.template.yaml" -Raw
+    Write-Host "Using config.template.yaml as base for test config" -ForegroundColor $InfoColor
 } else {
-    Write-Host "WARNING: config.yaml not found, assuming dry_run is already false" -ForegroundColor $WarningColor
+    Write-Host "WARNING: config.yaml not found; generating minimal test config" -ForegroundColor $WarningColor
+    $config = @"
+left_root: ""
+right_root: ""
+dry_run: true
+"@
 }
+
+$leftRootValue = ($LeftPath -replace '\\', '/')
+if (-not $leftRootValue.EndsWith('/')) { $leftRootValue += '/' }
+$rightRootValue = ($RightPath -replace '\\', '/')
+if (-not $rightRootValue.EndsWith('/')) { $rightRootValue += '/' }
+
+# Force dry_run off
+$config = $config -replace 'dry_run:\s+true', 'dry_run: false'
+$config = $config -replace 'dry_run:\s+false', 'dry_run: false'
+
+# Override roots; if missing, prepend them
+if ($config -match 'left_root:\s*".*?"') {
+    $config = [regex]::Replace($config, 'left_root:\s*".*?"', "left_root: `"$leftRootValue`"")
+} else {
+    $config = "left_root: `"$leftRootValue`"`n" + $config
+}
+
+if ($config -match 'right_root:\s*".*?"') {
+    $config = [regex]::Replace($config, 'right_root:\s*".*?"', "right_root: `"$rightRootValue`"")
+} else {
+    $config = "right_root: `"$rightRootValue`"`n" + $config
+}
+
+Set-Content -LiteralPath $TempConfigPath -Value $config -Encoding UTF8
+Write-Host "Prepared temporary test config: $TempConfigPath" -ForegroundColor $SuccessColor
 
 # Cleanup old test files
 Cleanup-TestDirectories
@@ -911,6 +951,72 @@ if (Invoke-Sync) {
 Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
 
+# Reset state before case-conflict canonical test to avoid prior runs influencing detection
+Remove-Item -LiteralPath "sync_state.db" -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath ".deleted" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 26: Case conflict preserves newer content and creates conflict artifacts
+$totalTests++
+Write-TestHeader "Case conflict keeps newer content and conflict copies" 26
+$test_name = "case_conflict_canonical"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path $test_left -Force | Out-Null
+New-Item -ItemType Directory -Path $test_right -Force | Out-Null
+
+$leftFile = "$test_left\CaseTest.txt"
+$rightFile = "$test_right\casetest.txt"
+"older-left-case" | Set-Content $leftFile
+"NEW-RIGHT-CONTENT" | Set-Content $rightFile
+
+# Ensure right side is newer than left for tie-breaking
+(Get-Item $leftFile).LastWriteTime = (Get-Date).AddSeconds(-120)
+(Get-Item $rightFile).LastWriteTime = (Get-Date).AddSeconds(-60)
+
+if (Invoke-Sync) {
+    # Run a second sync pass to ensure case normalization is fully applied
+    Invoke-Sync | Out-Null
+
+    $canonicalLeftPath = "$test_left\casetest.txt"
+    $canonicalRightPath = "$test_right\casetest.txt"
+    $leftExists = Test-Path $canonicalLeftPath
+    $rightExists = Test-Path $canonicalRightPath
+    $contentMatches = $leftExists -and $rightExists -and
+        ((Get-Content $canonicalLeftPath -Raw).Trim() -eq "NEW-RIGHT-CONTENT") -and
+        ((Get-Content $canonicalRightPath -Raw).Trim() -eq "NEW-RIGHT-CONTENT")
+
+    $conflictLeft = Get-ChildItem -LiteralPath $test_left -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
+    $conflictRight = Get-ChildItem -LiteralPath $test_right -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
+    $conflictExists = ($conflictLeft.Count -gt 0) -and ($conflictRight.Count -gt 0)
+    $conflictContentOk = $conflictExists -and
+        ((Get-Content $conflictLeft[0].FullName -Raw).Trim() -eq "older-left-case") -and
+        ((Get-Content $conflictRight[0].FullName -Raw).Trim() -eq "older-left-case")
+
+    $leftNames = Get-ChildItem -LiteralPath $test_left | Select-Object -ExpandProperty Name
+    $rightNames = Get-ChildItem -LiteralPath $test_right | Select-Object -ExpandProperty Name
+    # Case-sensitive check - on Windows, CaseTest.txt and casetest.txt are different
+    $noOldCasingLeft = -not ($leftNames -ccontains "CaseTest.txt")
+    $noOldCasingRight = -not ($rightNames -ccontains "CaseTest.txt")
+
+    Write-Result "Canonical file exists on left" $leftExists
+    Write-Result "Canonical file exists on right" $rightExists
+    Write-Result "Canonical content matches newer side" $contentMatches
+    Write-Result "Conflict files exist on both sides" $conflictExists
+    Write-Result "Conflict files contain older content" $conflictContentOk
+    Write-Result "Old casing removed on left" $noOldCasingLeft
+    Write-Result "Old casing removed on right" $noOldCasingRight
+
+    if ($leftExists -and $rightExists -and $contentMatches -and $conflictExists -and $conflictContentOk -and $noOldCasingLeft -and $noOldCasingRight) {
+        $passedTests++
+        Write-Result "Test 26 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 26 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
 # Summary
 Write-Host "`n$('='*60)" -ForegroundColor $InfoColor
 Write-Host "TEST SUMMARY" -ForegroundColor $InfoColor
@@ -923,13 +1029,8 @@ Write-Host "Failed: $failedTests" -ForegroundColor $(if ($failedTests -gt 0) { $
 Write-Host "`nCleaning up test files..." -ForegroundColor $InfoColor
 Cleanup-TestDirectories
 
-# Restore dry_run to true
-Write-Host "Restoring dry_run: true in config.yaml..." -ForegroundColor $InfoColor
-if (Test-Path -LiteralPath "config.yaml") {
-    $config = Get-Content "config.yaml" -Raw
-    $config = $config -replace 'dry_run:\s+false', 'dry_run: true'
-    Set-Content "config.yaml" $config
-    Write-Host "Restored dry_run: true" -ForegroundColor $SuccessColor
+if (Test-Path -LiteralPath $TempConfigPath) {
+    Remove-Item -LiteralPath $TempConfigPath -Force -ErrorAction SilentlyContinue
 }
 
 # Exit with appropriate code

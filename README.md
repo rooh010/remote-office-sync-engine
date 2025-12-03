@@ -59,8 +59,8 @@ A Python-based bidirectional file synchronization tool for syncing between two d
    ```
    Edit `config.yaml` with your environment-specific paths and settings:
    ```yaml
-   left_root: "C:/pdrive_local/"
-   right_root: "P:/"
+   left_root: "C:/local_share/"
+   right_root: "R:/remote_share/"
    ```
    **IMPORTANT:** Paths MUST use forward slashes (`/`) not backslashes (`\`). YAML will fail to parse backslashes.
 
@@ -118,13 +118,18 @@ The project includes a comprehensive manual test suite that validates all sync s
 
 ```powershell
 # Run with default test directories
-.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+.\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 
 # Run with custom directories
 .\run_manual_tests.ps1 -LeftPath "C:\path\to\left" -RightPath "C:\path\to\right"
 ```
+The script builds a temporary config (`config.manualtest.tmp.yaml`) using the paths you pass in and forces `dry_run: false`; your real `config.yaml` is never modified.
 
-**The 17 manual test cases verify:**
+You can also run the manual suite in CI on a free GitHub Actions Windows runner using temp folders via `.github/workflows/manual-tests.yml` (trigger with `workflow_dispatch`).
+The workflow fails if any manual test fails.
+Manual suite now includes 26 tests, adding a case-conflict check that ensures newer content wins and conflict artifacts are created on both sides.
+
+**The 26 manual test cases verify:**
 
 1. **File Creation L→R**: Create file on left, sync, verify on right with matching content
 2. **File Creation R→L**: Create file on right, sync, verify on left with matching content
@@ -157,6 +162,16 @@ The project includes a comprehensive manual test suite that validates all sync s
 16. **Case Conflict in Subdirectory**: Create case-insensitive conflict in subdirectory, verify conflict files exist in subdirectory with proper casing
 17. **File Attribute Synchronization**: Create file with attributes, sync, set different attributes on each side, verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
 
+18. **Directory Rename L→R:** Rename folder on left only → sync → verify renamed folder exists on both sides with all files
+19. **Directory Rename R→L:** Rename folder on right only → sync → verify renamed folder exists on both sides with all files
+20. **Directory Rename Same Name:** Rename folder to same name on both sides → sync → verify no conflicts and folder exists with correct name
+21. **Directory Rename Conflict:** Rename folder to different names on both sides → sync → verify conflict handled without crash
+22. **Nested Directory Rename:** Rename parent folder containing nested subdirectories → sync → verify entire structure renamed correctly
+23. **Directory Rename Content Verification:** Rename folder → sync → verify content and structure preserved in renamed folder
+24. **Directory Content Preservation:** Rename folder with multiple files in nested subdirectories → sync → verify all files exist in new location with correct content on both sides
+25. **Directory Case Change:** Change only the case of a directory name (MyFolder → myfolder) → sync → verify case change syncs to both sides
+26. **File Case Conflict Resolution:** Create same file with different casing on each side (CaseTest.txt on left with older mtime, casetest.txt on right with newer mtime) with different content → sync twice → verify canonical file (lowercase) exists on both sides with NEWER content, conflict file exists on both sides with OLDER content, and old casing is removed
+
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
@@ -170,7 +185,7 @@ pytest
 
 Then run the manual test suite to validate real-world file sync behavior:
 ```powershell
-.\run_manual_tests.ps1 -LeftPath "C:\pdrive_local" -RightPath "p:\"
+.\run_manual_tests.ps1 -LeftPath "C:\local_share" -RightPath "R:\remote_share"
 ```
 
 ### Check Code Quality
@@ -187,8 +202,8 @@ ruff check .
 ```yaml
 # IMPORTANT: Paths MUST use forward slashes (/) not backslashes (\)
 # Backslashes will cause YAML parsing errors!
-left_root: "C:/pdrive_local/"
-right_root: "P:/"
+left_root: "C:/local_share/"
+right_root: "R:/remote_share/"
 
 dry_run: true  # RECOMMENDED: Preview changes without modifying files
 
@@ -366,8 +381,8 @@ All operations logged to `sync.log` with timestamps:
 
 ```
 2025-01-22 14:30:45 - sync - INFO - Starting sync engine
-2025-01-22 14:30:45 - sync - INFO - Scanned 1523 files in C:\pdrive_local
-2025-01-22 14:30:45 - sync - INFO - Scanned 1520 files in P:\
+2025-01-22 14:30:45 - sync - INFO - Scanned 1523 files in C:\local_share
+2025-01-22 14:30:45 - sync - INFO - Scanned 1520 files in R:\remote_share
 2025-01-22 14:30:46 - sync - INFO - [COPY_LEFT_TO_RIGHT] documents/report.docx
 2025-01-22 14:30:46 - sync - WARNING - Conflict detected: data.xlsx
 2025-01-22 14:30:47 - sync - INFO - Sync completed: 47 jobs executed, 0 failed

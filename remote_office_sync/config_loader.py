@@ -178,11 +178,6 @@ class Config:
         """Get number of backup log files to keep."""
         return self._config.get("logging", {}).get("backup_count", 5)
 
-    @property
-    def pcloud_check_enabled(self) -> bool:
-        """Get whether to check if pCloud is running before sync."""
-        return self._config.get("pcloud_check", {}).get("enabled", False)
-
     def to_dict(self) -> Dict[str, Any]:
         """Return config as dictionary."""
         return self._config.copy()
@@ -217,7 +212,7 @@ def load_config(config_path: str) -> Config:
 
         error_msg += "3. Edit config.yaml and set your paths:\n"
         error_msg += '   left_root: "C:/your/local/path/"  (use forward slashes!)\n'
-        error_msg += '   right_root: "P:/your/network/path/"\n\n'
+        error_msg += '   right_root: "R:/your/network/path/"\n\n'
         error_msg += "See README.md for complete setup instructions.\n"
 
         raise ConfigError(error_msg)

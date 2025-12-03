@@ -14,8 +14,8 @@
 # Forward slashes work perfectly in Windows - they are the REQUIRED format for YAML
 #
 # WARNING: THIS WILL CAUSE A FILE SYNC BETWEEN THE 2 FOLDERS - ENSURE CORRECT FOLDERS
-left_root: "y:/pdrive_local/"
-right_root: "z:/"
+left_root: "c:/local_share/"
+right_root: "r:/remote_share/"
 
 # Dry run mode (RECOMMENDED: Keep enabled until you're confident in the sync behavior)
 # When true, shows detailed preview of what would change with visual diagrams, but makes NO actual changes
@@ -76,8 +76,4 @@ logging:
     max_size_mb: 10
     backup_count: 5
 
-# Optional: Drive check (e.g., pCloud, OneDrive, etc.)
-# Only needed if syncing to a cloud-mounted drive that might not be mounted
-pcloud_check:
-    enabled: false  # Set to true to check if pCloud.exe (or similar) is running before sync
-                    # This prevents errors if a cloud drive like P:/ is not mounted
+                    # This prevents errors if a cloud-mounted drive is not present

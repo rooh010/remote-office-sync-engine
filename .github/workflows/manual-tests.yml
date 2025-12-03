@@ -1,0 +1,38 @@
+name: Manual Sync Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'run_manual_tests.ps1'
+      - 'remote_office_sync/**'
+      - '.github/workflows/manual-tests.yml'
+      - 'requirements.txt'
+
+jobs:
+  manual-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run manual sync tests with temp folders
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $left = Join-Path $env:RUNNER_TEMP "sync_left"
+          $right = Join-Path $env:RUNNER_TEMP "sync_right"
+          New-Item -ItemType Directory -Path $left -Force | Out-Null
+          New-Item -ItemType Directory -Path $right -Force | Out-Null
+          ./run_manual_tests.ps1 -LeftPath $left -RightPath $right
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

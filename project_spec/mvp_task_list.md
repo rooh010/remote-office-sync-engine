@@ -9,7 +9,7 @@
 **Remote Office File Sync Script (Python)**
 **Phase:** MVP 0.1
 
-The goal of the MVP is to produce a working Python script that performs a correct one-shot bi-directional sync between the Left (C:\pdrive_local) and Right (P:\) paths using all sync rules, including conflict resolution, soft delete, and config-based behaviour.
+The goal of the MVP is to produce a working Python script that performs a correct one-shot bi-directional sync between the Left (C:\local_share) and Right (R:\) paths using all sync rules, including conflict resolution, soft delete, and config-based behaviour.
 Real-time watchers, Windows service integration, and advanced features are not included in MVP.
 
 ## 1. Project Setup
