@@ -97,20 +97,21 @@ Get-ChildItem -LiteralPath $test_right | ForEach-Object {
 $leftExists = Test-Path $canonicalLeftPath
 $rightExists = Test-Path $canonicalRightPath
 $contentMatches = $leftExists -and $rightExists -and
-    (Get-Content $canonicalLeftPath -Raw) -eq "NEW-RIGHT-CONTENT" -and
-    (Get-Content $canonicalRightPath -Raw) -eq "NEW-RIGHT-CONTENT"
+    ((Get-Content $canonicalLeftPath -Raw).Trim() -eq "NEW-RIGHT-CONTENT") -and
+    ((Get-Content $canonicalRightPath -Raw).Trim() -eq "NEW-RIGHT-CONTENT")
 
 $conflictLeft = Get-ChildItem -LiteralPath $test_left -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
 $conflictRight = Get-ChildItem -LiteralPath $test_right -Filter "CaseTest.CONFLICT*.txt" -ErrorAction SilentlyContinue
 $conflictExists = ($conflictLeft.Count -gt 0) -and ($conflictRight.Count -gt 0)
 $conflictContentOk = $conflictExists -and
-    ((Get-Content $conflictLeft[0].FullName -Raw) -eq "older-left-case") -and
-    ((Get-Content $conflictRight[0].FullName -Raw) -eq "older-left-case")
+    ((Get-Content $conflictLeft[0].FullName -Raw).Trim() -eq "older-left-case") -and
+    ((Get-Content $conflictRight[0].FullName -Raw).Trim() -eq "older-left-case")
 
 $leftNames = Get-ChildItem -LiteralPath $test_left | Select-Object -ExpandProperty Name
 $rightNames = Get-ChildItem -LiteralPath $test_right | Select-Object -ExpandProperty Name
-$noOldCasingLeft = -not ($leftNames -contains "CaseTest.txt")
-$noOldCasingRight = -not ($rightNames -contains "CaseTest.txt")
+# Case-sensitive check - on Windows, CaseTest.txt and casetest.txt are different
+$noOldCasingLeft = -not ($leftNames -ccontains "CaseTest.txt")
+$noOldCasingRight = -not ($rightNames -ccontains "CaseTest.txt")
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "TEST RESULTS:" -ForegroundColor Cyan

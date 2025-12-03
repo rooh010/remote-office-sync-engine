@@ -148,7 +148,7 @@ Set `dry_run: false` in config.yaml for testing, restore to `true` after.
 23. **Directory Rename Content Verification:** Rename folder → sync → verify content and structure preserved in renamed folder
 24. **Directory Content Preservation:** Rename folder with multiple files in nested subdirectories → sync → verify all files exist in new location with correct content on both sides
 25. **Directory Case Change:** Change only the case of a directory name (MyFolder → myfolder) → sync → verify case change syncs to both sides
-26. **TBC:** tbc
+26. **File Case Conflict Resolution:** Create same file with different casing on each side (CaseTest.txt on left with older mtime, casetest.txt on right with newer mtime) with different content → sync twice → verify canonical file (lowercase) exists on both sides with NEWER content, conflict file exists on both sides with OLDER content, and old casing is removed
 
 #### Content Verification (CRITICAL):
 - **ALWAYS verify file content, not just existence!**

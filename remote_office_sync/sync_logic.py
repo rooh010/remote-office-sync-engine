@@ -164,6 +164,9 @@ class SyncEngine:
         # Then handle conflicts
         conflicts = self.conflict_detector.detect_conflicts()
         for file_path, (conflict_type, _, curr_metadata) in conflicts.items():
+            if file_path in processed:
+                logger.debug(f"Skipping {file_path} (already processed)")
+                continue
             processed.add(file_path)
             jobs.extend(self._handle_conflict(file_path, conflict_type, curr_metadata))
 
@@ -522,13 +525,23 @@ class SyncEngine:
                 meta_right = self.current_state[right_var]
 
                 # Snapshot bytes now to avoid later overwrites (best-effort)
+                # On case-insensitive filesystems, we must check metadata to determine
+                # which side the file exists on, not just path.exists()
                 for var in variants:
+                    var_meta = self.current_state.get(var)
+                    if not var_meta:
+                        continue
+
                     path_left = Path(self.config.left_root) / var
                     path_right = Path(self.config.right_root) / var
-                    if path_left.exists():
-                        self.case_snapshot[var] = self._safe_read_bytes(path_left)
-                    elif path_right.exists():
-                        self.case_snapshot[var] = self._safe_read_bytes(path_right)
+
+                    # Use metadata to determine which side to read from
+                    if var_meta.exists_left and path_left.exists():
+                        bytes_content = self._safe_read_bytes(path_left)
+                        self.case_snapshot[var] = bytes_content
+                    elif var_meta.exists_right and path_right.exists():
+                        bytes_content = self._safe_read_bytes(path_right)
+                        self.case_snapshot[var] = bytes_content
 
                 # Find previous state entry (case-insensitive)
                 prev_path = None
