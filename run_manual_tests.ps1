@@ -39,7 +39,7 @@ function Write-Result {
 function Test-FileExists {
     param([string]$Path, [string]$Description)
     $exists = Test-Path -LiteralPath $Path -PathType Leaf
-    Write-Result "$Description exists" $exists
+    [void](Write-Result "$Description exists" $exists)
     return $exists
 }
 
@@ -49,7 +49,7 @@ function Test-ContentMatch {
     $rightContent = Get-Content -LiteralPath $RightFile -Raw -ErrorAction SilentlyContinue
 
     $match = $leftContent -eq $rightContent
-    Write-Result "$Description content matches" $match
+    [void](Write-Result "$Description content matches" $match)
     return $match
 }
 
