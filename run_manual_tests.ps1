@@ -78,8 +78,8 @@ function Cleanup-TestDirectories {
     Remove-Item -LiteralPath "$RightPath\manual_test" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove ONLY test-specific files and their conflict variants (not any user files)
-    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test, attr_test, dir_rename_left, dir_rename_right, dir_same_rename, dir_rename_conflict, nested_rename, verify_new_rename
-    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*", "attr_test*", "dir_rename_left*", "dir_rename_right*", "dir_same_rename*", "dir_rename_conflict*", "nested_rename*", "verify_new_rename*")
+    # Test files are named: test1, test2, conflict_test, new_new_conflict, CaseTest, casetest, delete_me_dir, emptydir, newdir, subconflict, stress_test, caseconflict_test, attr_test, dir_rename_left, dir_rename_right, dir_same_rename, dir_rename_conflict, nested_rename, verify_new_rename, content_preservation, case_change_dir
+    $testPatterns = @("test1*", "test2*", "conflict_test*", "new_new_conflict*", "casetest*", "CaseTest*", "delete_me_dir*", "emptydir*", "newdir*", "subconflict*", "stress_test*", "caseconflict_test*", "attr_test*", "dir_rename_left*", "dir_rename_right*", "dir_same_rename*", "dir_rename_conflict*", "nested_rename*", "verify_new_rename*", "content_preservation*", "case_change_dir*")
 
     foreach ($pattern in $testPatterns) {
         Get-ChildItem -Path "$LeftPath" -Filter $pattern -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -812,6 +812,85 @@ if (Invoke-Sync) {
     } else {
         $failedTests++
         Write-Result "Test 23 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 24: Directory rename with multiple files - verify all contents preserved
+$totalTests++
+Write-TestHeader "Directory rename preserves all contents" 24
+$test_name = "content_preservation"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\source_folder\sub1\sub2" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\source_folder\sub1\sub2" -Force | Out-Null
+"file1 content" | Set-Content "$test_left\source_folder\file1.txt"
+"file2 content" | Set-Content "$test_left\source_folder\sub1\file2.txt"
+"file3 content" | Set-Content "$test_left\source_folder\sub1\sub2\file3.txt"
+"file1 content" | Set-Content "$test_right\source_folder\file1.txt"
+"file2 content" | Set-Content "$test_right\source_folder\sub1\file2.txt"
+"file3 content" | Set-Content "$test_right\source_folder\sub1\sub2\file3.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+Rename-Item -Path "$test_left\source_folder" -NewName "dest_folder"
+if (Invoke-Sync) {
+    $file1Left = Test-Path "$test_left\dest_folder\file1.txt"
+    $file2Left = Test-Path "$test_left\dest_folder\sub1\file2.txt"
+    $file3Left = Test-Path "$test_left\dest_folder\sub1\sub2\file3.txt"
+    $file1Right = Test-Path "$test_right\dest_folder\file1.txt"
+    $file2Right = Test-Path "$test_right\dest_folder\sub1\file2.txt"
+    $file3Right = Test-Path "$test_right\dest_folder\sub1\sub2\file3.txt"
+    $content1Match = if ($file1Left -and $file1Right) {
+        Test-ContentMatch "$test_left\dest_folder\file1.txt" "$test_right\dest_folder\file1.txt" "file1"
+    } else { $false }
+    $content2Match = if ($file2Left -and $file2Right) {
+        Test-ContentMatch "$test_left\dest_folder\sub1\file2.txt" "$test_right\dest_folder\sub1\file2.txt" "file2"
+    } else { $false }
+    $content3Match = if ($file3Left -and $file3Right) {
+        Test-ContentMatch "$test_left\dest_folder\sub1\sub2\file3.txt" "$test_right\dest_folder\sub1\sub2\file3.txt" "file3"
+    } else { $false }
+    Write-Result "All 3 files exist on left in new location" ($file1Left -and $file2Left -and $file3Left)
+    Write-Result "All 3 files exist on right in new location" ($file1Right -and $file2Right -and $file3Right)
+    Write-Result "All content matches after rename" ($content1Match -and $content2Match -and $content3Match)
+    if ($file1Left -and $file2Left -and $file3Left -and $file1Right -and $file2Right -and $file3Right -and $content1Match -and $content2Match -and $content3Match) {
+        $passedTests++
+        Write-Result "Test 24 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 24 FAILED" $false
+    }
+}
+Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $test_right -Recurse -Force -ErrorAction SilentlyContinue
+
+# Test 25: Directory case change only (MyFolder -> myfolder)
+$totalTests++
+Write-TestHeader "Directory case change syncs correctly" 25
+$test_name = "case_change_dir"
+$test_left = "$LeftPath\$test_name"
+$test_right = "$RightPath\$test_name"
+New-Item -ItemType Directory -Path "$test_left\MyFolder" -Force | Out-Null
+New-Item -ItemType Directory -Path "$test_right\MyFolder" -Force | Out-Null
+"test content" | Set-Content "$test_left\MyFolder\file.txt"
+"test content" | Set-Content "$test_right\MyFolder\file.txt"
+# Initial sync to establish state
+Invoke-Sync | Out-Null
+# Change case on left (MyFolder -> myfolder)
+Rename-Item -Path "$test_left\MyFolder" -NewName "myfolder_temp"
+Rename-Item -Path "$test_left\myfolder_temp" -NewName "myfolder"
+if (Invoke-Sync) {
+    # After sync, both sides should have the new case
+    $leftHasLower = Test-Path "$test_left\myfolder\file.txt"
+    $rightHasLower = Test-Path "$test_right\myfolder\file.txt"
+    Write-Result "Left has lowercase folder with file" $leftHasLower
+    Write-Result "Right has lowercase folder with file" $rightHasLower
+    if ($leftHasLower -and $rightHasLower) {
+        $passedTests++
+        Write-Result "Test 25 PASSED" $true
+    } else {
+        $failedTests++
+        Write-Result "Test 25 FAILED" $false
     }
 }
 Remove-Item -Path $test_left -Recurse -Force -ErrorAction SilentlyContinue
