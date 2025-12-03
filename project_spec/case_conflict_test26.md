@@ -16,6 +16,11 @@ Manual Test 26 ("Case conflict keeps newer content and conflict copies") current
 - Old casing (`CaseTest.txt`) remains present.
 - Manual suite result: 25/26 pass; Test 26 fails. (Test 19 warning resolved after reverting recent `main.py` changes.)
 
+## Root Cause Identified
+- When two new files appear with different casing and no prior state, `_detect_case_changes` previously skipped treating this as a case conflict, so the first sync handled it as a generic CLASH and overwrote the older variant, producing wrong conflict contents.
+- Fix applied in `remote_office_sync/sync_logic.py`: new files with different casing are now flagged as a case conflict even without prior state, ensuring the CASE_CONFLICT handler runs.
+- Unit test for case conflicts now passes, but the manual Test 26 still fails on Windows because the CASE_CONFLICT handler needs further work to preserve older content in conflict copies and normalize casing in a case-insensitive FS.
+
 ## Context / Timeline
 - Manual suite originally passed 25/25 (before adding Test 26).
 - Added Test 26 and case-conflict fixes in `remote_office_sync/main.py`; unit test (`test_case_conflict_keeps_newer_casing_and_conflict_artifacts`) was made to pass on Linux.

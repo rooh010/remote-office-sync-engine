@@ -538,8 +538,17 @@ class SyncEngine:
                         break
 
                 if prev_path is None:
-                    # No previous state - this is a new file with different cases on each side
-                    # Treat as new-new conflict, not a case change
+                    # No previous state: new file with different cases on each side.
+                    # Treat as a case conflict so the newer variant wins and older
+                    # content is preserved as conflict artifacts.
+                    processed.add(left_var)
+                    processed.add(right_var)
+                    logger.warning(
+                        f"Case conflict detected (new files): "
+                        f"{left_var} (left) vs {right_var} (right)"
+                    )
+                    # Add directly to conflicts with left_var as the anchor
+                    case_conflicts[left_var] = (left_var, right_var)
                     continue
 
                 # Determine which side(s) changed case from previous state

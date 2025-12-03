@@ -162,6 +162,16 @@ Manual suite now includes 26 tests, adding a case-conflict check that ensures ne
 16. **Case Conflict in Subdirectory**: Create case-insensitive conflict in subdirectory, verify conflict files exist in subdirectory with proper casing
 17. **File Attribute Synchronization**: Create file with attributes, sync, set different attributes on each side, verify attributes sync bidirectionally (Hidden, ReadOnly, Archive)
 
+18. **Directory Rename L→R:** Rename folder on left only → sync → verify renamed folder exists on both sides with all files
+19. **Directory Rename R→L:** Rename folder on right only → sync → verify renamed folder exists on both sides with all files
+20. **Directory Rename Same Name:** Rename folder to same name on both sides → sync → verify no conflicts and folder exists with correct name
+21. **Directory Rename Conflict:** Rename folder to different names on both sides → sync → verify conflict handled without crash
+22. **Nested Directory Rename:** Rename parent folder containing nested subdirectories → sync → verify entire structure renamed correctly
+23. **Directory Rename Content Verification:** Rename folder → sync → verify content and structure preserved in renamed folder
+24. **Directory Content Preservation:** Rename folder with multiple files in nested subdirectories → sync → verify all files exist in new location with correct content on both sides
+25. **Directory Case Change:** Change only the case of a directory name (MyFolder → myfolder) → sync → verify case change syncs to both sides
+26. **TBC:** tbc
+
 The script automatically:
 - Sets `dry_run: false` in config.yaml before testing
 - Restores `dry_run: true` after testing
